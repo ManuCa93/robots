@@ -1,0 +1,80 @@
+================================================================================
+PROJECT #3: GARBAGE SORTING WITH ROBOT ARM (PROJECT PLAN)
+================================================================================
+
+
+1. PROJECT OVERVIEW
+-------------------
+Objective: 
+Develop a simulation using the Panda robot to identify, pick, and sort colored 
+objects into specific bins. The core task is to implement and compare two 
+distinct motion control strategies.
+
+Hardware/Model: to decide yet 
+Input: Known object colors and positions.
+Output: Sorted objects in bins + Performance Analysis.
+
+2. LIBRARIES
+---------------------
+- roboticstoolbox (Kinematics, Trajectory generation)
+- spatialmath (SE3 poses, rotations)
+- spatialgeometry (Collision shapes: Cubes, Boxes)
+- swift (3D Simulation/Visualization)
+- numpy (Matrix operations, Linear Algebra)
+- pandas (Data logging and storage)
+
+================================================================================
+DEVELOPMENT PHASES
+================================================================================
+
+PHASE 1: ENVIRONMENT SETUP
+--------------------------
+1. Initialize Swift Simulator.
+2. Load the Panda Robot model.
+3. Create "Garbage" Objects:
+   - Generate colored cubes (Red, Green, Blue).
+   - Place them at random (x, y) coordinates on a table surface.
+4. Define Bins:
+   - Define target coordinates (poses) for Red, Green, and Blue bins.
+
+PHASE 2: KINEMATICS & PLANNING
+------------------------------
+For each detected object (i):
+1. Define Poses:
+   - p_pick: The pose of the object.
+   - p_approach: A safe point some distance above the object.
+   - p_place: The pose of the target bin.
+2. Inverse Kinematics (IK):
+   - Calculate joint configurations (q_pick, q_place) using the robot's IK solver.
+
+PHASE 3: CONTROL STRATEGIES (THE COMPARISON)
+--------------------------------------------
+You must implement a switch to run the simulation with either Strategy A or B.
+
+Strategy A: Joint-Space Trajectory Interpolation
+- Logic: Plan movement directly in joint space.
+- Method: to be defined
+- Result: Smooth joint motion, but the end-effector path will be an arc (not a straight line).
+
+Strategy B: Resolved-Rate Motion Control
+- Logic: Control the end-effector velocity in Cartesian space.
+- Method: 
+	to be defined
+- Result: The end-effector moves in a straight line.
+
+PHASE 4: ANALYSIS & REPORTING
+-----------------------------
+1. Data Logging (using Pandas/Numpy):
+   - Record timestamp, end-effector position (x,y,z), and joint angles for every step.
+2. Plots & Metrics:
+   - Trajectory Plot: Compare the 3D path of Strategy A vs. Strategy B.
+   - Smoothness: Analyze velocity/acceleration profiles.
+   - Accuracy: Calculate final position error.
+   - Execution Time: Compare how long each method takes to complete the task.
+
+================================================================================
+POSSIBLE EXTENSIONS
+================================================================================
+1. Obstacle Avoidance: Add a wall between pick and place zones to test path planning.
+2. Vision Simulation: Randomize object locations and "scan" for them instead of hardcoding.
+3. Obstacle Differentiation: Sort by other metrics other than color (size, shape, etc...).
