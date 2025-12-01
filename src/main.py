@@ -69,9 +69,9 @@ def main():
         executor = JointSpaceExecutor(env.panda, env, js_controller, obj_manager, sleep_dt=0.02)
         executor.execute_all(joint_trajs)
     else:
-        # Use RRMC
-        rrmc = RRMCController(dt=0.05, K=0.5)
-        executor = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager, sleep_dt=0.02, update_freq=10)
+        # Use RRMC with natural motion control
+        rrmc = RRMCController(dt=0.01, position_tol=0.02, lambda_damping=0.15, gain=1.5)
+        executor = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager, sleep_dt=0.02)
         executor.execute_all(trajectories)
     
     # 5. Visualize results

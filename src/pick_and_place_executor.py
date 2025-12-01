@@ -90,7 +90,7 @@ class PickAndPlaceExecutor:
             
     def _rrmc_move_with_viz(self, target_pose, q_start, cube_attached=False, T_rel=None, cube=None):
         """
-        Execute RRMC motion with visualization.
+        Execute RRMC motion with visualization using natural control loop.
         
         Args:
             target_pose: Target SE3 pose
@@ -102,50 +102,39 @@ class PickAndPlaceExecutor:
         Returns:
             Final joint configuration
         """
-        q = q_start.copy()
+        # Set initial configuration
+        self.robot.q = q_start.copy()
         
-        for i in range(self.rrmc_controller.max_iterations):
-            T_current = self.robot.fkine(q)
-            T_error = target_pose * T_current.inv()
-            position_error = T_error.t
+        # Position error
+        error = target_pose.t - self.robot.fkine(self.robot.q).t
+        
+        # Control loop: continue until error is small enough
+        while np.linalg.norm(error) >= self.rrmc_controller.position_tol:
             
-            # Orientation error
-            R_error = T_error.R
-            angle = np.arccos(np.clip((np.trace(R_error) - 1) / 2, -1, 1))
+            # Compute position error to target
+            error = target_pose.t - self.robot.fkine(self.robot.q).t
             
-            if angle < 1e-6:
-                orientation_error = np.zeros(3)
-            else:
-                axis = np.array([
-                    R_error[2, 1] - R_error[1, 2],
-                    R_error[0, 2] - R_error[2, 0],
-                    R_error[1, 0] - R_error[0, 1]
-                ]) / (2 * np.sin(angle))
-                orientation_error = angle * axis
+            # Compute Jacobian (only position, 3 rows)
+            J = self.robot.jacob0(self.robot.q)[0:3, :]
             
-            # Check convergence
-            if (np.linalg.norm(position_error) < self.rrmc_controller.position_tol and 
-                np.linalg.norm(orientation_error) < self.rrmc_controller.orientation_tol):
-                return q
+            # Damped pseudo-inverse
+            J_damped_pinv = J.T @ np.linalg.inv(J @ J.T + self.rrmc_controller.lambda_damping * np.eye(3))
             
-            # Compute motion
-            spatial_error = np.concatenate([position_error, orientation_error])
-            J = self.robot.jacob0(q)
-            J_damped = J.T @ np.linalg.inv(J @ J.T + self.rrmc_controller.lambda_damping**2 * np.eye(6))
-            v_desired = self.rrmc_controller.K * spatial_error
-            q_dot = J_damped @ v_desired
-            q = q + q_dot * self.rrmc_controller.dt
+            # Compute joint velocities
+            q_dot = self.rrmc_controller.gain * J_damped_pinv @ error
             
-            # Update visualization periodically
-            if i % self.update_freq == 0:
-                self.env.set_robot_config(q)
-                if cube_attached and T_rel is not None and cube is not None:
-                    T_ee = self.robot.fkine(q)
-                    cube.T = T_ee * T_rel
-                self.env.step(0.01)
-                time.sleep(self.sleep_dt)
+            # Apply to robot
+            self.robot.qd = q_dot
+            
+            # Update visualization
+            self.env.set_robot_config(self.robot.q)
+            if cube_attached and T_rel is not None and cube is not None:
+                T_ee = self.robot.fkine(self.robot.q)
+                cube.T = T_ee * T_rel
+            self.env.step(self.rrmc_controller.dt)
+            time.sleep(self.sleep_dt)
                 
-        return q
+        return self.robot.q
         
     def execute_all(self, trajectories):
         """

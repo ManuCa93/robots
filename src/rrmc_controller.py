@@ -4,31 +4,27 @@ import numpy as np
 
 
 class RRMCController:
-    """Implements RRMC for Cartesian velocity control."""
+    """Implements RRMC for Cartesian velocity control with natural motion."""
     
-    def __init__(self, dt=0.05, position_tol=0.001, orientation_tol=0.01, 
-                 max_iterations=2000, lambda_damping=0.01, K=0.5):
+    def __init__(self, dt=0.01, position_tol=0.02, lambda_damping=0.15, gain=1.5):
         """
         Initialize RRMC controller.
         
         Args:
             dt: Time step for integration
             position_tol: Position error tolerance (m)
-            orientation_tol: Orientation error tolerance (rad)
-            max_iterations: Maximum number of iterations
             lambda_damping: Damping factor for pseudo-inverse
-            K: Proportional gain
+            gain: Proportional gain for velocity control
         """
         self.dt = dt
         self.position_tol = position_tol
-        self.orientation_tol = orientation_tol
-        self.max_iterations = max_iterations
         self.lambda_damping = lambda_damping
-        self.K = K
+        self.gain = gain
         
     def move_to_pose(self, robot, target_pose, q_start):
         """
-        Move robot to target pose using RRMC.
+        Move robot to target pose using RRMC with natural convergence.
+        Simple control loop that continues until error is small enough.
         
         Args:
             robot: Robot model
@@ -37,51 +33,42 @@ class RRMCController:
             
         Returns:
             q_final: Final joint configuration
-            success: Boolean indicating convergence
+            qd_hist: History of joint velocities
+            cond_hist: History of condition numbers
         """
-        q = q_start.copy()
+        # Set initial configuration
+        robot.q = q_start.copy()
         
-        for i in range(self.max_iterations):
-            # Current end-effector pose
-            T_current = robot.fkine(q)
+        # Position error
+        error = target_pose.t - robot.fkine(robot.q).t
+        
+        # Log variables
+        qd_hist = []
+        cond_hist = []
+        
+        # Control loop: continue until error is small enough
+        while np.linalg.norm(error) >= self.position_tol:
             
-            # Pose error
-            T_error = target_pose * T_current.inv()
-            position_error = T_error.t
+            # Compute position error to target
+            error = target_pose.t - robot.fkine(robot.q).t
             
-            # Orientation error (axis-angle)
-            R_error = T_error.R
-            angle = np.arccos(np.clip((np.trace(R_error) - 1) / 2, -1, 1))
+            # Compute Jacobian (only position, 3 rows)
+            J = robot.jacob0(robot.q)[0:3, :]
             
-            if angle < 1e-6:
-                orientation_error = np.zeros(3)
-            else:
-                axis = np.array([
-                    R_error[2, 1] - R_error[1, 2],
-                    R_error[0, 2] - R_error[2, 0],
-                    R_error[1, 0] - R_error[0, 1]
-                ]) / (2 * np.sin(angle))
-                orientation_error = angle * axis
+            # Damped pseudo-inverse
+            J_damped_pinv = J.T @ np.linalg.inv(J @ J.T + self.lambda_damping * np.eye(3))
             
-            # Check convergence
-            if (np.linalg.norm(position_error) < self.position_tol and 
-                np.linalg.norm(orientation_error) < self.orientation_tol):
-                return q, True
+            # Condition number for monitoring
+            cond_number = np.linalg.cond(J_damped_pinv)
             
-            # Spatial error
-            spatial_error = np.concatenate([position_error, orientation_error])
+            # Compute joint velocities
+            q_dot = self.gain * J_damped_pinv @ error
             
-            # Jacobian and damped pseudo-inverse
-            J = robot.jacob0(q)
-            J_damped = J.T @ np.linalg.inv(J @ J.T + self.lambda_damping**2 * np.eye(6))
+            # Apply to robot (robot automatically integrates qd)
+            robot.qd = q_dot
             
-            # Desired Cartesian velocity
-            v_desired = self.K * spatial_error
-            
-            # Joint velocities
-            q_dot = J_damped @ v_desired
-            
-            # Integrate
-            q = q + q_dot * self.dt
-            
-        return q, False
+            # Log
+            qd_hist.append(robot.qd.copy())
+            cond_hist.append(cond_number)
+        
+        return robot.q, qd_hist, cond_hist

@@ -46,7 +46,7 @@ print("="*60)
 planner_rrmc = TrajectoryPlanner(env.panda, env.q_home, approach_height=APPROACH_HEIGHT)
 trajectories_rrmc = planner_rrmc.plan_all_trajectories(pick_place_pairs)
 
-rrmc = RRMCController(dt=0.05, K=0.5)
+rrmc = RRMCController(dt=0.01, position_tol=0.02, lambda_damping=0.15, gain=1.5)
 executor_rrmc = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager)
 
 print("\n[RRMC] Executing pick-and-place for 'red' cube...")
