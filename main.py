@@ -1,45 +1,59 @@
 """Main execution script for robot pick-and-place task"""
 
 import numpy as np
-from robot_environment import RobotEnvironment
-from object_manager import ObjectManager
-from rrmc_controller import RRMCController
-from joint_space_controller import JointSpaceController
-from trajectory_planner import TrajectoryPlanner
-from pick_and_place_executor import PickAndPlaceExecutor
-from joint_space_executor import JointSpaceExecutor
-from visualizer import Visualizer
+from src.robot_environment import RobotEnvironment
+from src.object_manager import ObjectManager
+from src.rrmc_controller import RRMCController
+from src.joint_space_controller import JointSpaceController
+from src.trajectory_planner import TrajectoryPlanner
+from src.pick_and_place_executor import PickAndPlaceExecutor
+from src.joint_space_executor import JointSpaceExecutor
+from src.visualizer import Visualizer
 
 
 def main():
     """Main execution function."""
     
     # Configuration
-    CUBE_SIZE = 0.06
+    CUBE_SIZE = 0.03
     PLATE_SIZE = 0.1
     APPROACH_HEIGHT = 0.12
+    cube_height = CUBE_SIZE
+    cube_center_z = CUBE_SIZE / 2  
+    pick_z = cube_center_z + cube_height / 2  
     
     # Choose control method: "rrmc" or "joint_space"
     CONTROL_METHOD = "rrmc"  # Change to "joint_space" to use joint-space control
     
     # Define cube pick positions
-    cube_pick_positions = {
-        'red': np.array([0.5, 0.25, CUBE_SIZE]),
-        'blue': np.array([0.5, 0.13, CUBE_SIZE]),
-        'green': np.array([0.5, 0.01, CUBE_SIZE]),
-        'yellow': np.array([0.5, -0.11, CUBE_SIZE]),
+    # cube_pick_positions = {
+    #     'red':    (np.array([0.5,  0.25, pick_z]), np.array([0.25, -0.35, pick_z])),
+    #     'blue':   (np.array([0.5,  0.13, pick_z]), np.array([0.25, -0.47, pick_z])),
+    #     'green':  (np.array([0.5,  0.01, pick_z]), np.array([0.25, -0.59, pick_z])),
+    #     'yellow': (np.array([0.5, -0.11, pick_z]), np.array([0.25, -0.71, pick_z])),
+    # }
+    cube_positions_only = {
+        'red': np.array([0.5, 0.25, pick_z]),
+        'blue': np.array([0.5, 0.13, pick_z]),
+        'green': np.array([0.5, 0.01, pick_z]),
+        'yellow': np.array([0.5, -0.11, pick_z]),
     }
+    
+
     
     # 1. Initialize environment
     print("[INFO] Initializing robot environment...")
     env = RobotEnvironment()
+    print("A")
     env.launch(realtime=True)
-    
+    # env.env.launch(realtime=True, comms="rtc")
+    print("B")
     # 2. Create objects
     print("[INFO] Creating objects...")
     obj_manager = ObjectManager(cube_size=CUBE_SIZE, plate_size=PLATE_SIZE)
-    obj_manager.create_cubes(cube_pick_positions, env)
-    obj_manager.create_plates(env.terrain_bounds, env)
+    # obj_manager.create_cubes(cube_pick_positions, env)
+    obj_manager.create_cubes(cube_positions_only, env)
+    obj_manager.create_buckets(env.terrain_bounds, env, cube_height)
     
     # 3. Plan trajectories
     print("\n[INFO] Planning trajectories...")

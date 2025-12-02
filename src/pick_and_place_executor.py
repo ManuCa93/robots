@@ -55,7 +55,7 @@ class PickAndPlaceExecutor:
             T_ee_contact = self.robot.fkine(q_current)
             T_cube_contact = cube.T
             T_rel = T_ee_contact.inv() * T_cube_contact
-            
+
             # Phase 3: pick -> pick_above (lifting with cube)
             print(f"[RRMC] {name}: Lifting with cube")
             q_current = self._rrmc_move_with_viz(poses["pick_above"], q_current, 
@@ -72,9 +72,12 @@ class PickAndPlaceExecutor:
                                                   cube_attached=True, T_rel=T_rel, cube=cube)
             
             # Set final cube position
-            place_pos = self.object_manager.plate_positions[name]
-            cube.T = SE3(place_pos[0], place_pos[1], self.object_manager.cube_center_z)
-            
+            # place_pos = self.object_manager.plate_positions[name]
+            # cube.T = SE3(place_pos[0], place_pos[1], self.object_manager.cube_center_z)
+            bucket_pos = self.object_manager.buckets_positions[name]
+            # cube.T = SE3(bucket_pos[0], bucket_pos[1], bucket_pos[2] - self.object_manager.cube_size/2)
+            cube.T = SE3(bucket_pos[0], bucket_pos[1], bucket_pos[2])
+
             # Phase 6: place -> place_above (retracting)
             print(f"[RRMC] {name}: Retracting gripper")
             q_current = self._rrmc_move_with_viz(poses["place_above"], q_current)

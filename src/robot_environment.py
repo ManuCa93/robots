@@ -21,12 +21,32 @@ class RobotEnvironment:
         self.panda = rtb.models.Panda()
         
         # Default terrain bounds
-        if terrain_bounds is None:
-            terrain_bounds = {
-                "x_min": 0.2, "x_max": 0.6,
-                "y_min": -0.8, "y_max": 0.8
-            }
-        self.terrain_bounds = terrain_bounds
+        # if terrain_bounds is None:
+        #     terrain_bounds = {
+        #         "x_min": 0.2, "x_max": 0.6,
+        #         "y_min": -0.8, "y_max": 0.8
+        #     }
+        # self.terrain_bounds = terrain_bounds
+        
+        self.bucket_positions = [
+            (0.30, -0.50),  
+            (0.55, -0.50),  
+            (0.30, 0.50),   
+            (0.55, 0.50),   
+        ]
+
+        # Estrai X e Y
+        self.bucket_x = [pos[0] for pos in self.bucket_positions]
+        self.bucket_y = [pos[1] for pos in self.bucket_positions]
+
+        # Calcola i limiti con margine
+        margin = 0.1
+        self.terrain_bounds = {
+            "x_min": min(self.bucket_x) - margin,  # 0.30 - 0.1 = 0.20
+            "x_max": max(self.bucket_x) + margin,  # 0.55 + 0.1 = 0.65
+            "y_min": min(self.bucket_y) - margin,  # -0.50 - 0.1 = -0.60
+            "y_max": max(self.bucket_y) + margin,  # 0.50 + 0.1 = 0.60
+        }
         
         # Home configuration
         self.q_home = np.array([0, -np.pi/4, 0, -3*np.pi/4, 0, np.pi/2, np.pi/4])
@@ -35,21 +55,34 @@ class RobotEnvironment:
         
     def launch(self, realtime=True):
         """Launch the Swift environment."""
-        self.env.launch(realtime=realtime, comms="rtc")
+        print("A2")
+        # self.env.launch(realtime=realtime, comms="rtc", browser="notebook")
+        self.env.launch()
+        print("A3")
         self.env.add(self.panda)
+        print("A4")
         self._create_terrain()
         print("[INFO] Environment launched successfully")
         
     def _create_terrain(self):
         """Create and add terrain to the environment."""
         bounds = self.terrain_bounds
+        # self.terrain = Cuboid(
+        #     [bounds['x_max'] - bounds['x_min'], 
+        #      bounds['y_max'] - bounds['y_min'], 
+        #      0.001],
+        #     pose=SE3((bounds['x_min'] + bounds['x_max']) / 2, 
+        #              (bounds['y_min'] + bounds['y_max']) / 2, 
+        #              0),
+        #     color=[0.5, 0.5, 0.5, 0.3]
+        # )
         self.terrain = Cuboid(
-            [bounds['x_max'] - bounds['x_min'], 
-             bounds['y_max'] - bounds['y_min'], 
-             0.001],
-            pose=SE3((bounds['x_min'] + bounds['x_max']) / 2, 
-                     (bounds['y_min'] + bounds['y_max']) / 2, 
-                     0),
+            [self.terrain_bounds['x_max'] - self.terrain_bounds['x_min'], 
+            self.terrain_bounds['y_max'] - self.terrain_bounds['y_min'], 
+            0.001],  
+            pose=SE3((self.terrain_bounds['x_min'] + self.terrain_bounds['x_max']) / 2, 
+                    (self.terrain_bounds['y_min'] + self.terrain_bounds['y_max']) / 2, 
+                    0),
             color=[0.5, 0.5, 0.5, 0.3]
         )
         self.env.add(self.terrain)
