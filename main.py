@@ -23,7 +23,7 @@ def main():
     pick_z = cube_center_z + cube_height / 2  
     
     # Choose control method: "rrmc" or "joint_space"
-    CONTROL_METHOD = "joint_space"  # Change to "joint_space" to use joint-space control
+    CONTROL_METHOD = "rrmc"  # Change to "joint_space" to use joint-space control
     
     # Define cube pick positions
     # cube_pick_positions = {
@@ -84,8 +84,8 @@ def main():
         executor.execute_all(joint_trajs)
     else:
         # Use RRMC with natural motion control
-        rrmc = RRMCController(dt=0.01, position_tol=0.02, lambda_damping=0.15, gain=1.5)
-        executor = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager, sleep_dt=0.02)
+        rrmc = RRMCController(dt=0.01, position_tol=0.005, orientation_tol=0.02, lambda_damping=0.1, gain=5.0)
+        executor = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager, sleep_dt=0.005)
         executor.execute_all(trajectories)
     
     # 5. Visualize results

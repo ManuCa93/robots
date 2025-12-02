@@ -37,8 +37,12 @@ class PickAndPlaceExecutor:
             trajectory_data: Dictionary with poses and IK solutions
         """
         cube = self.object_manager.cubes[name]
-        poses = trajectory_data["poses"]
-        q_home = trajectory_data["ik_solutions"]["home"]
+        ik_solutions = trajectory_data["ik_solutions"]
+        
+        # Generate target poses from IK solutions using fkine
+        poses = {key: self.robot.fkine(q) for key, q in ik_solutions.items()}
+        
+        q_home = ik_solutions["home"]
         
         try:
             q_current = q_home.copy()
