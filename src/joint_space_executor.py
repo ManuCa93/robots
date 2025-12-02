@@ -84,8 +84,8 @@ class JointSpaceExecutor:
                 time.sleep(self.sleep_dt)
             
             # Force the cube exactly into the place position
-            place_pos = self.object_manager.plate_positions[name]
-            cube.T = SE3(place_pos[0], place_pos[1], self.object_manager.cube_center_z)
+            bucket_pos = self.object_manager.buckets_positions[name]
+            cube.T = SE3(bucket_pos[0], bucket_pos[1], bucket_pos[2])
             
             # 6) place -> place_above (gripper rises, cube STAYS on the table)
             print(f"[Joint-Space] {name}: Retracting gripper")
@@ -97,10 +97,15 @@ class JointSpaceExecutor:
             
             # 7) place_above -> home (robot returns to home)
             print(f"[Joint-Space] {name}: Returning to home")
-            for q in trajs["place_abv_to_home"]:
+            traj_home = trajs["place_abv_to_home"]
+            print(f"[DEBUG] Trajectory shape: {traj_home.shape}, points: {len(traj_home)}")
+            for idx, q in enumerate(traj_home):
+                self.robot.q = q
                 self.env.set_robot_config(q)
                 self.env.step(0.01)
                 time.sleep(self.sleep_dt)
+                if idx % 20 == 0:
+                    print(f"[DEBUG] Step {idx}/{len(traj_home)}")
             
             print(f"[Joint-Space] {name}: Completed successfully")
             

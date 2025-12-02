@@ -23,7 +23,7 @@ def main():
     pick_z = cube_center_z + cube_height / 2  
     
     # Choose control method: "rrmc" or "joint_space"
-    CONTROL_METHOD = "rrmc"  # Change to "joint_space" to use joint-space control
+    CONTROL_METHOD = "joint_space"  # Change to "joint_space" to use joint-space control
     
     # Define cube pick positions
     # cube_pick_positions = {
