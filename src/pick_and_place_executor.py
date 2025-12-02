@@ -93,7 +93,7 @@ class PickAndPlaceExecutor:
             
     def _rrmc_move_with_viz(self, target_pose, q_start, cube_attached=False, T_rel=None, cube=None):
         """
-        Execute RRMC motion with visualization using natural control loop.
+        Execute RRMC motion with visualization using 6-DOF control.
         
         Args:
             target_pose: Target SE3 pose
@@ -108,23 +108,45 @@ class PickAndPlaceExecutor:
         # Set initial configuration
         self.robot.q = q_start.copy()
         
-        # Position error
-        error = target_pose.t - self.robot.fkine(self.robot.q).t
+        iteration = 0
+        max_iterations = 5000
         
-        # Control loop: continue until error is small enough
-        while np.linalg.norm(error) >= self.rrmc_controller.position_tol:
+        # Control loop with 6-DOF control
+        while iteration < max_iterations:
+            # Get current pose
+            current_pose = self.robot.fkine(self.robot.q)
             
-            # Compute position error to target
-            error = target_pose.t - self.robot.fkine(self.robot.q).t
+            # Position error
+            pos_error = target_pose.t - current_pose.t
             
-            # Compute Jacobian (only position, 3 rows)
-            J = self.robot.jacob0(self.robot.q)[0:3, :]
+            # Orientation error
+            R_current = current_pose.R
+            R_target = target_pose.R
+            R_error = R_target @ R_current.T
+            ori_error = np.array([
+                R_error[2, 1] - R_error[1, 2],
+                R_error[0, 2] - R_error[2, 0],
+                R_error[1, 0] - R_error[0, 1]
+            ]) / 2.0
+            
+            # Check convergence
+            pos_error_norm = np.linalg.norm(pos_error)
+            ori_error_norm = np.linalg.norm(ori_error)
+            
+            if pos_error_norm < self.rrmc_controller.position_tol and ori_error_norm < self.rrmc_controller.orientation_tol:
+                break
+            
+            # 6D error
+            error_6d = np.concatenate([pos_error, ori_error])
+            
+            # Full Jacobian
+            J = self.robot.jacob0(self.robot.q)
             
             # Damped pseudo-inverse
-            J_damped_pinv = J.T @ np.linalg.inv(J @ J.T + self.rrmc_controller.lambda_damping * np.eye(3))
+            J_damped_pinv = J.T @ np.linalg.inv(J @ J.T + self.rrmc_controller.lambda_damping * np.eye(6))
             
-            # Compute joint velocities
-            q_dot = self.rrmc_controller.gain * J_damped_pinv @ error
+            # Joint velocities
+            q_dot = self.rrmc_controller.gain * J_damped_pinv @ error_6d
             
             # Apply to robot
             self.robot.qd = q_dot
@@ -136,6 +158,8 @@ class PickAndPlaceExecutor:
                 cube.T = T_ee * T_rel
             self.env.step(self.rrmc_controller.dt)
             time.sleep(self.sleep_dt)
+            
+            iteration += 1
                 
         return self.robot.q
         
