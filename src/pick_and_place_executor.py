@@ -9,7 +9,7 @@ class PickAndPlaceExecutor:
     """Executes pick-and-place operations using RRMC."""
     
     def __init__(self, robot, env, rrmc_controller, object_manager, 
-                 sleep_dt=0.02, update_freq=10):
+                 sleep_dt=0.02, update_freq=10, gravity_acceleration=0.5):
         """
         Initialize executor.
         
@@ -20,6 +20,7 @@ class PickAndPlaceExecutor:
             object_manager: ObjectManager instance
             sleep_dt: Sleep time between updates
             update_freq: Frequency of visualization updates
+            gravity_acceleration: Gravity acceleration for cube drop (m/s²)
         """
         self.robot = robot
         self.env = env
@@ -27,6 +28,7 @@ class PickAndPlaceExecutor:
         self.object_manager = object_manager
         self.sleep_dt = sleep_dt
         self.update_freq = update_freq
+        self.gravity_acceleration = gravity_acceleration
         
     def execute_single(self, name, trajectory_data):
         """
@@ -70,22 +72,25 @@ class PickAndPlaceExecutor:
             q_current = self._rrmc_move_with_viz(poses["place_above"], q_current, 
                                                   cube_attached=True, T_rel=T_rel, cube=cube)
             
-            # Phase 5: place_above -> place (placing)
-            print(f"[RRMC] {name}: Descending to place")
-            q_current = self._rrmc_move_with_viz(poses["place"], q_current, 
-                                                  cube_attached=True, T_rel=T_rel, cube=cube)
-            
-            # Set final cube position using per-cube slot inside the bucket
+            # Phase 5: Release cube and simulate gravity drop
+            print(f"[RRMC] {name}: Releasing cube with gravity")
             place_pos = self.object_manager.object_place_positions.get(
                 name,
                 self.object_manager.buckets_positions.get(self.object_manager.get_base_color(name))
             )
             if place_pos is not None:
-                cube.T = SE3(place_pos[0], place_pos[1], place_pos[2])
+                # Get current cube position (at place_above height)
+                cube_transform = cube.T
+                if hasattr(cube_transform, 't'):
+                    current_cube_pos = cube_transform.t
+                else:
+                    # If it's already an SE3, get translation
+                    current_cube_pos = SE3(cube_transform).t
+                # Simulate gravity drop to final position
+                self._simulate_gravity_drop(cube, current_cube_pos, place_pos)
 
-            # Phase 6: place -> place_above (retracting)
-            print(f"[RRMC] {name}: Retracting gripper")
-            q_current = self._rrmc_move_with_viz(poses["place_above"], q_current)
+            # Phase 6: Retracting gripper (no need to move, already at place_above)
+            print(f"[RRMC] {name}: Gripper released")
             
             # Phase 7: place_above -> home (returning)
             print(f"[RRMC] {name}: Returning to home")
@@ -95,6 +100,61 @@ class PickAndPlaceExecutor:
             
         except Exception as e:
             print(f"[ERROR] Failed to execute pick-and-place for {name}: {e}")
+    
+    def _simulate_gravity_drop(self, cube, start_pos, target_pos):
+        """
+        Simulate gravity drop of cube from current position to target.
+        
+        Args:
+            cube: Cube object to drop
+            start_pos: Starting position (x, y, z)
+            target_pos: Target position (x, y, z)
+        """
+        print(f"[GRAVITY] Start pos: {start_pos}")
+        print(f"[GRAVITY] Target pos: {target_pos}")
+        
+        # Calculate drop distance
+        drop_distance = start_pos[2] - target_pos[2]
+        print(f"[GRAVITY] Drop distance: {drop_distance:.4f}m")
+        
+        if drop_distance <= 0:
+            # Already at or below target, just set position
+            print(f"[GRAVITY] No drop needed (distance <= 0)")
+            cube.T = SE3(target_pos[0], target_pos[1], target_pos[2])
+            return
+        
+        # Physics: v² = u² + 2as, where u=0 (initial velocity)
+        # Time to fall: t = sqrt(2*h/g)
+        fall_time = np.sqrt(2 * drop_distance / self.gravity_acceleration)
+        
+        # Number of steps for smooth animation
+        num_steps = max(int(fall_time / self.sleep_dt), 10)
+        
+        print(f"[GRAVITY] Fall time: {fall_time:.3f}s, Steps: {num_steps}")
+        
+        # Simulate falling with increasing velocity
+        for step in range(num_steps + 1):
+            t = (step / num_steps) * fall_time
+            
+            # Calculate height using kinematic equation: h = h0 - 0.5*g*t²
+            current_z = start_pos[2] - 0.5 * self.gravity_acceleration * t**2
+            
+            # Ensure we don't go below target
+            current_z = max(current_z, target_pos[2])
+            
+            # Update cube position (x, y stay the same, only z changes)
+            cube.T = SE3(target_pos[0], target_pos[1], current_z)
+            
+            # Update visualization
+            self.env.step(self.sleep_dt)
+            time.sleep(self.sleep_dt)
+            
+            # Stop if we've reached the target
+            if current_z <= target_pos[2]:
+                break
+        
+        # Ensure final position is exactly at target
+        cube.T = SE3(target_pos[0], target_pos[1], target_pos[2])
             
     def _rrmc_move_with_viz(self, target_pose, q_start, cube_attached=False, T_rel=None, cube=None):
         """
