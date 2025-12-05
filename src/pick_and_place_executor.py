@@ -75,12 +75,13 @@ class PickAndPlaceExecutor:
             q_current = self._rrmc_move_with_viz(poses["place"], q_current, 
                                                   cube_attached=True, T_rel=T_rel, cube=cube)
             
-            # Set final cube position
-            # place_pos = self.object_manager.plate_positions[name]
-            # cube.T = SE3(place_pos[0], place_pos[1], self.object_manager.cube_center_z)
-            bucket_pos = self.object_manager.buckets_positions[name]
-            # cube.T = SE3(bucket_pos[0], bucket_pos[1], bucket_pos[2] - self.object_manager.cube_size/2)
-            cube.T = SE3(bucket_pos[0], bucket_pos[1], bucket_pos[2])
+            # Set final cube position using per-cube slot inside the bucket
+            place_pos = self.object_manager.object_place_positions.get(
+                name,
+                self.object_manager.buckets_positions.get(self.object_manager.get_base_color(name))
+            )
+            if place_pos is not None:
+                cube.T = SE3(place_pos[0], place_pos[1], place_pos[2])
 
             # Phase 6: place -> place_above (retracting)
             print(f"[RRMC] {name}: Retracting gripper")

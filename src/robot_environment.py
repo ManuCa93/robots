@@ -55,12 +55,9 @@ class RobotEnvironment:
         
     def launch(self, realtime=True):
         """Launch the Swift environment."""
-        print("A2")
-        # self.env.launch(realtime=realtime, comms="rtc", browser="notebook")
-        self.env.launch()
-        print("A3")
+        self.env.launch(realtime=realtime, comms="rtc")
+        # self.env.launch()
         self.env.add(self.panda)
-        print("A4")
         self._create_terrain()
         print("[INFO] Environment launched successfully")
         

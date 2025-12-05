@@ -32,11 +32,14 @@ def main():
     #     'green':  (np.array([0.5,  0.01, pick_z]), np.array([0.25, -0.59, pick_z])),
     #     'yellow': (np.array([0.5, -0.11, pick_z]), np.array([0.25, -0.71, pick_z])),
     # }
+    # Generate 4 red cubes, 2 green, 1 blue, 1 yellow
     cube_positions_only = {
-        'red': np.array([0.5, 0.25, pick_z]),
-        'blue': np.array([0.5, 0.13, pick_z]),
-        'green': np.array([0.5, 0.01, pick_z]),
-        'yellow': np.array([0.5, -0.11, pick_z]),
+        'red1':    np.array([0.5,  0.31, pick_z]),
+        'red2':    np.array([0.5,  0.19, pick_z]),
+        'green1':  np.array([0.5,  0.07, pick_z]),
+        'green2':  np.array([0.5, -0.05, pick_z]),
+        'yellow1': np.array([0.5, -0.17, pick_z]),
+        'blue1':   np.array([0.5, -0.29, pick_z]),
     }
     
 
@@ -44,10 +47,8 @@ def main():
     # 1. Initialize environment
     print("[INFO] Initializing robot environment...")
     env = RobotEnvironment()
-    print("A")
     env.launch(realtime=True)
-    # env.env.launch(realtime=True, comms="rtc")
-    print("B")
+    # env.env.launch(realtime=True, comms="rtc")
     # 2. Create objects
     print("[INFO] Creating objects...")
     obj_manager = ObjectManager(cube_size=CUBE_SIZE, plate_size=PLATE_SIZE)

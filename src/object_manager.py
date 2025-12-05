@@ -30,6 +30,8 @@ class ObjectManager:
         self.plates = {}
         self.cube_positions = {}
         self.plate_positions = {}
+        self.buckets_positions = {}
+        self.object_place_positions = {}
         
     def create_cubes(self, positions, env):
         """
@@ -39,18 +41,18 @@ class ObjectManager:
             positions: Dictionary mapping color names to (x, y, z) positions
             env: RobotEnvironment instance
         """
-        colors = {
-            'red': [1, 0, 0, 0.8],
-            'blue': [0, 0, 1, 0.8],
-            'green': [0, 1, 0, 0.8],
-            'yellow': [1, 1, 0, 0.8]
-        }
-        
         for name, pos in positions.items():
+            base_color = self.get_base_color(name)
+            colors = {
+                'red': [1, 0, 0, 0.8],
+                'blue': [0, 0, 1, 0.8],
+                'green': [0, 1, 0, 0.8],
+                'yellow': [1, 1, 0, 0.8]
+            }
             cube = Cuboid(
                 [self.cube_size, self.cube_size, self.cube_size],
                 pose=SE3(pos[0], pos[1], self.cube_center_z),
-                color=colors.get(name, [0.5, 0.5, 0.5, 0.8])
+                color=colors.get(base_color, [0.5, 0.5, 0.5, 0.8])
             )
             self.cubes[name] = cube
             self.cube_positions[name] = pos
@@ -226,6 +228,18 @@ class ObjectManager:
             bounds['x_min'] + self.plate_size / 2 <= x <= bounds['x_max'] - self.plate_size / 2 and
             bounds['y_min'] + self.plate_size / 2 <= y <= bounds['y_max'] - self.plate_size / 2
         )
+    
+    def get_base_color(self, name):
+        """Extract base color from cube name (e.g. 'red1' -> 'red')."""
+        if name.startswith('red'):
+            return 'red'
+        if name.startswith('green'):
+            return 'green'
+        if name.startswith('yellow'):
+            return 'yellow'
+        if name.startswith('blue'):
+            return 'blue'
+        return name
         
     def get_pick_place_pairs(self):
         """
@@ -235,10 +249,46 @@ class ObjectManager:
             Dictionary mapping color names to (pick_pos, place_pos) tuples
         """
         pairs = {}
-        for name in self.cube_positions.keys():
-            pick_pos = self.cube_positions[name]
-            bucket_pos = self.buckets_positions[name].copy()
-            bucket_pos[2] = max(self.plate_center_z + self.cube_size, bucket_pos[2])
-            pairs[name] = (pick_pos, bucket_pos)
-        print(pairs["red"])
+        
+        # Each bucket can contain up to 9 cubes in a 3x3 grid
+        grid_size = 3
+        slot_spacing = self.cube_size * 1.5
+        placed_counts = {color: 0 for color in self.buckets_positions.keys()}
+        offset_base = (grid_size - 1) / 2
+
+        self.object_place_positions = {}
+
+        for name, pick_pos in self.cube_positions.items():
+            base_color = self.get_base_color(name)
+            if base_color not in self.buckets_positions:
+                # Skip objects whose color has no associated bucket
+                continue
+
+            count = placed_counts.get(base_color, 0)
+            max_slots = grid_size ** 2
+            if count >= max_slots:
+                print(f"[WARN] Bucket '{base_color}' is full (max {max_slots} cubes). Skipping {name}.")
+                continue
+
+            # Center position of the bucket for this color
+            bucket_center = self.buckets_positions[base_color].copy()
+
+            # Compute 3x3 grid offsets inside the bucket
+            row = count // grid_size
+            col = count % grid_size
+            offset_x = (col - offset_base) * slot_spacing
+            offset_y = (row - offset_base) * slot_spacing
+
+            place_pos = bucket_center.copy()
+            place_pos[0] += offset_x
+            place_pos[1] += offset_y
+
+            # Ensure Z is on the bucket floor (bucket_center.z already encodes drop height)
+            place_pos[2] = bucket_center[2]
+
+            placed_counts[base_color] = count + 1
+
+            self.object_place_positions[name] = place_pos.copy()
+            pairs[name] = (pick_pos, place_pos)
+
         return pairs
