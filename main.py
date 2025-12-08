@@ -1,6 +1,7 @@
 """Main execution script for robot pick-and-place task"""
 
 import numpy as np
+import time
 from src.robot_environment import RobotEnvironment
 from src.object_manager import ObjectManager
 from src.rrmc_controller import RRMCController
@@ -23,7 +24,7 @@ def main():
     pick_z = cube_center_z + cube_height / 2  
     
     # Choose control method: "rrmc" or "joint_space"
-    CONTROL_METHOD = "joint_space"  # Change to "joint_space" to use joint-space control
+    CONTROL_METHOD = "rrmc"  # Change to "joint_space" to use joint-space control
     
     # Define cube pick positions
     # cube_pick_positions = {
@@ -56,6 +57,12 @@ def main():
     obj_manager.create_cubes(cube_positions_only, env)
     obj_manager.create_buckets(env.terrain_bounds, env, cube_height)
     
+    # 2.5 Start circular motion (only for RRMC mode)
+    if CONTROL_METHOD == "rrmc":
+        print("\n[INFO] Starting circular motion of cubes...")
+        obj_manager.start_circular_motion(env)
+        time.sleep(1.0)  # Let cubes start moving
+    
     # 3. Plan trajectories
     print("\n[INFO] Planning trajectories...")
     
@@ -84,12 +91,16 @@ def main():
         executor = JointSpaceExecutor(env.panda, env, js_controller, obj_manager, sleep_dt=0.02)
         executor.execute_all(joint_trajs)
     else:
-        # Use RRMC with natural motion control
-        rrmc = RRMCController(dt=0.01, position_tol=0.005, orientation_tol=0.02, lambda_damping=0.1, gain=5.0)
+        # Use RRMC with natural motion control (increased gain for faster tracking)
+        rrmc = RRMCController(dt=0.01, position_tol=0.005, orientation_tol=0.02, lambda_damping=0.1, gain=8.0)
         executor = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager, sleep_dt=0.005)
         executor.execute_all(trajectories)
     
-    # 5. Visualize results
+    # 5. Stop circular motion if it was enabled
+    if CONTROL_METHOD == "rrmc":
+        obj_manager.stop_circular_motion()
+    
+    # 6. Visualize results
     print("\n[INFO] Generating visualization...")
     if CONTROL_METHOD == "rrmc":
         Visualizer.plot_rrmc_waypoints(trajectories)

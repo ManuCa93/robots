@@ -9,7 +9,7 @@ class PickAndPlaceExecutor:
     """Executes pick-and-place operations using RRMC."""
     
     def __init__(self, robot, env, rrmc_controller, object_manager, 
-                 sleep_dt=0.02, update_freq=10, gravity_acceleration=0.5):
+                 sleep_dt=0.005, update_freq=10, gravity_acceleration=0.5):
         """
         Initialize executor.
         
@@ -49,13 +49,16 @@ class PickAndPlaceExecutor:
         try:
             q_current = q_home.copy()
             
-            # Phase 1: Home -> pick_above
-            print(f"[RRMC] {name}: Moving to pick_above")
-            q_current = self._rrmc_move_with_viz(poses["pick_above"], q_current)
+            # Phase 1: Home -> pick_above (tracking moving cube)
+            print(f"[RRMC] {name}: Moving to pick_above (tracking moving target)")
+            q_current = self._rrmc_move_with_viz_tracking(poses["pick_above"], q_current, name, phase="pick_above")
             
-            # Phase 2: pick_above -> pick (descending)
-            print(f"[RRMC] {name}: Descending to pick")
-            q_current = self._rrmc_move_with_viz(poses["pick"], q_current)
+            # Phase 2: pick_above -> pick (descending while tracking)
+            print(f"[RRMC] {name}: Descending to pick (tracking moving target)")
+            q_current = self._rrmc_move_with_viz_tracking(poses["pick"], q_current, name, phase="pick")
+            
+            # Mark cube as picked (stops its circular motion)
+            self.object_manager.mark_cube_picked(name)
             
             # Calculate relative transform for attachment
             T_ee_contact = self.robot.fkine(q_current)
@@ -78,7 +81,15 @@ class PickAndPlaceExecutor:
                 name,
                 self.object_manager.buckets_positions.get(self.object_manager.get_base_color(name))
             )
+            
+            # Mark cube as released BEFORE dropping (stops circular motion permanently)
+            self.object_manager.mark_cube_released(name)
+            
             if place_pos is not None:
+                # Update the stored cube position to the place position
+                with self.object_manager.motion_lock:
+                    self.object_manager.cube_positions[name] = place_pos.copy()
+                
                 # Get current cube position (at place_above height)
                 cube_transform = cube.T
                 if hasattr(cube_transform, 't'):
@@ -156,6 +167,87 @@ class PickAndPlaceExecutor:
         # Ensure final position is exactly at target
         cube.T = SE3(target_pos[0], target_pos[1], target_pos[2])
             
+    def _rrmc_move_with_viz_tracking(self, initial_target_pose, q_start, cube_name, phase="pick_above"):
+        """
+        Execute RRMC motion while tracking a moving cube.
+        
+        Args:
+            initial_target_pose: Initial target SE3 pose
+            q_start: Starting joint configuration
+            cube_name: Name of the cube to track
+            phase: Phase of motion ("pick_above" or "pick")
+            
+        Returns:
+            Final joint configuration
+        """
+        # Set initial configuration
+        self.robot.q = q_start.copy()
+        
+        iteration = 0
+        max_iterations = 5000
+        
+        approach_height = 0.12 if phase == "pick_above" else 0.0
+        
+        # Control loop with dynamic target tracking
+        while iteration < max_iterations:
+            # Get current cube position (thread-safe)
+            current_cube_pos = self.object_manager.get_current_cube_position(cube_name)
+            
+            if current_cube_pos is not None:
+                # Update target pose based on current cube position
+                target_pose = SE3(current_cube_pos[0], current_cube_pos[1], 
+                                 current_cube_pos[2] + approach_height) * SE3.Rx(np.pi)
+            else:
+                target_pose = initial_target_pose
+            
+            # Get current pose
+            current_pose = self.robot.fkine(self.robot.q)
+            
+            # Position error
+            pos_error = target_pose.t - current_pose.t
+            
+            # Orientation error
+            R_current = current_pose.R
+            R_target = target_pose.R
+            R_error = R_target @ R_current.T
+            ori_error = np.array([
+                R_error[2, 1] - R_error[1, 2],
+                R_error[0, 2] - R_error[2, 0],
+                R_error[1, 0] - R_error[0, 1]
+            ]) / 2.0
+            
+            # Check convergence
+            pos_error_norm = np.linalg.norm(pos_error)
+            ori_error_norm = np.linalg.norm(ori_error)
+            
+            if pos_error_norm < self.rrmc_controller.position_tol and ori_error_norm < self.rrmc_controller.orientation_tol:
+                break
+            
+            # 6D error
+            error_6d = np.concatenate([pos_error, ori_error])
+            
+            # Full Jacobian
+            J = self.robot.jacob0(self.robot.q)
+            
+            # Damped pseudo-inverse
+            J_damped_pinv = J.T @ np.linalg.inv(J @ J.T + self.rrmc_controller.lambda_damping * np.eye(6))
+            
+            # Joint velocities with higher gain for tracking (2.5x faster)
+            tracking_gain = self.rrmc_controller.gain * 2.5
+            q_dot = tracking_gain * J_damped_pinv @ error_6d
+            
+            # Apply to robot
+            self.robot.qd = q_dot
+            
+            # Update visualization
+            self.env.set_robot_config(self.robot.q)
+            self.env.step(self.rrmc_controller.dt)
+            time.sleep(self.sleep_dt)
+            
+            iteration += 1
+                
+        return self.robot.q
+    
     def _rrmc_move_with_viz(self, target_pose, q_start, cube_attached=False, T_rel=None, cube=None):
         """
         Execute RRMC motion with visualization using 6-DOF control.

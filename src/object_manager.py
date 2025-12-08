@@ -2,6 +2,8 @@
 
 import numpy as np
 import random
+import threading
+import time
 from spatialmath import SE3
 from spatialgeometry import Cuboid
 
@@ -33,6 +35,17 @@ class ObjectManager:
         self.buckets_positions = {}
         self.object_place_positions = {}
         
+        # Circular motion parameters
+        self.motion_enabled = False
+        self.motion_thread = None
+        self.motion_lock = threading.Lock()
+        self.circle_center = np.array([0.425, 0.0])  # Center of workspace
+        self.circle_radius = 0.15  # Radius of circular motion
+        self.angular_velocity = 0.3  # rad/s (slower cubes, easier to catch)
+        self.motion_start_time = None
+        self.initial_angles = {}  # Store initial angle for each cube
+        self.picked_cubes = set()  # Track cubes that are picked up (stop their motion)
+        
     def create_cubes(self, positions, env):
         """
         Create cube objects at specified positions.
@@ -59,6 +72,12 @@ class ObjectManager:
             env.add_object(cube)
         
         print(self.cube_positions)
+        
+        # Initialize cube angles for circular motion
+        num_cubes = len(self.cubes)
+        for idx, name in enumerate(self.cubes.keys()):
+            # Distribute cubes evenly around the circle
+            self.initial_angles[name] = (2 * np.pi * idx) / num_cubes
             
         print(f"[INFO] Created {len(self.cubes)} cubes")
         
@@ -292,3 +311,73 @@ class ObjectManager:
             pairs[name] = (pick_pos, place_pos)
 
         return pairs
+    
+    def start_circular_motion(self, env):
+        """Start circular motion of cubes in a separate thread."""
+        if self.motion_enabled:
+            print("[INFO] Circular motion already running")
+            return
+        
+        self.motion_enabled = True
+        self.motion_start_time = time.time()
+        self.motion_thread = threading.Thread(target=self._circular_motion_loop, args=(env,), daemon=True)
+        self.motion_thread.start()
+        print(f"[INFO] Started circular motion: radius={self.circle_radius}m, omega={self.angular_velocity}rad/s")
+    
+    def stop_circular_motion(self):
+        """Stop circular motion of cubes."""
+        self.motion_enabled = False
+        if self.motion_thread:
+            self.motion_thread.join(timeout=1.0)
+        print("[INFO] Stopped circular motion")
+    
+    def _circular_motion_loop(self, env):
+        """Background thread that updates cube positions in a circle."""
+        dt = 0.02  # Update every 20ms
+        
+        while self.motion_enabled:
+            current_time = time.time() - self.motion_start_time
+            
+            with self.motion_lock:
+                for name, cube in self.cubes.items():
+                    if name not in self.initial_angles:
+                        continue
+                    
+                    # Skip cubes that are picked up or released
+                    if name in self.picked_cubes:
+                        continue
+                    
+                    # Calculate current angle
+                    angle = self.initial_angles[name] + self.angular_velocity * current_time
+                    
+                    # Calculate position on circle
+                    x = self.circle_center[0] + self.circle_radius * np.cos(angle)
+                    y = self.circle_center[1] + self.circle_radius * np.sin(angle)
+                    z = self.cube_center_z
+                    
+                    # Update cube position (both visual and stored)
+                    cube.T = SE3(x, y, z)
+                    self.cube_positions[name] = np.array([x, y, self.pick_z])
+            
+            time.sleep(dt)
+    
+    def get_current_cube_position(self, name):
+        """Get current position of a cube (thread-safe)."""
+        with self.motion_lock:
+            if name in self.cube_positions:
+                return self.cube_positions[name].copy()
+            return None
+    
+    def mark_cube_picked(self, name):
+        """Mark a cube as picked (stops its circular motion)."""
+        with self.motion_lock:
+            self.picked_cubes.add(name)
+            print(f"[MOTION] Cube {name} marked as picked, motion stopped")
+    
+    def mark_cube_released(self, name):
+        """Mark a cube as released (it stays where placed, doesn't resume motion)."""
+        with self.motion_lock:
+            # Keep cube in picked_cubes set so motion loop never touches it again
+            if name not in self.picked_cubes:
+                self.picked_cubes.add(name)
+            print(f"[MOTION] Cube {name} marked as released (motion disabled permanently)")
