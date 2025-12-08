@@ -168,6 +168,81 @@ class JointSpaceExecutor:
         # Ensure final position is exactly at target
         cube.T = SE3(target_pos[0], target_pos[1], target_pos[2])
     
+    def _execute_tracking_motion(self, name, trajs, traj_key, phase):
+        """
+        Execute motion with continuous tracking of moving cube.
+        
+        Args:
+            name: Cube name
+            trajs: Trajectory dictionary
+            traj_key: Key for trajectory in trajs dict
+            phase: \"pick_above\" or \"pick\"
+            
+        Returns:
+            Last joint configuration reached
+        """
+        max_tracking_time = 10.0  # Maximum time to spend tracking (seconds)
+        start_time = time.time()
+        convergence_threshold = 0.03  # 3cm convergence threshold
+        iteration = 0
+        min_iterations = 3  # Always do at least a few iterations
+        
+        while time.time() - start_time < max_tracking_time:
+            iteration += 1
+            
+            # Get current cube position
+            current_cube_pos = self.object_manager.get_current_cube_position(name)
+            if current_cube_pos is None:
+                print(f"[Joint-Space] No cube position available")
+                break
+            
+            # Get current robot position
+            q_current = self.robot.q.copy()
+            
+            # Compute target based on phase
+            if phase == "pick_above":
+                z_offset = 0.12
+            else:  # pick
+                z_offset = 0.01  # 1cm above cube top
+            
+            target_pos = current_cube_pos + np.array([0, 0, z_offset])
+            
+            # Check if we're close enough (but always do minimum iterations)
+            current_ee_pos = self.robot.fkine(q_current).t
+            distance_to_target = np.linalg.norm(current_ee_pos[:2] - target_pos[:2])  # XY distance only
+            
+            if iteration == 1 or iteration % 5 == 0:
+                print(f"[Joint-Space] Iteration {iteration}, distance: {distance_to_target*1000:.1f}mm")
+            
+            if iteration > min_iterations and distance_to_target < convergence_threshold:
+                # Close enough, stop tracking
+                print(f"[Joint-Space] Reached target after {iteration} iterations (distance: {distance_to_target*1000:.1f}mm)")
+                break
+            
+            # Compute IK for current target
+            target_pose = SE3(target_pos[0], target_pos[1], target_pos[2]) * SE3.Rx(np.pi)
+            ik_result = self.robot.ikine_LM(target_pose, q0=q_current)
+            
+            if not ik_result.success:
+                print(f"[Joint-Space] IK failed for tracking, using previous trajectory")
+                break
+            
+            q_target = ik_result.q
+            
+            # Generate short trajectory segment (0.5 seconds worth)
+            segment_duration = 0.5
+            segment_points = int(segment_duration / self.sleep_dt)
+            trajectory_segment = self.controller.interpolate(q_current, q_target, duration=segment_duration, n_points=segment_points)
+            
+            # Execute trajectory segment
+            for q in trajectory_segment:
+                self.robot.q = q
+                self.env.set_robot_config(q)
+                self.env.step(0.01)
+                time.sleep(self.sleep_dt)
+        
+        return self.robot.q.copy()
+    
     def execute_all(self, trajectories_dict):
         """
         Execute pick-and-place for all objects.

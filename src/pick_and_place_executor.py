@@ -186,7 +186,12 @@ class PickAndPlaceExecutor:
         iteration = 0
         max_iterations = 5000
         
-        approach_height = 0.12 if phase == "pick_above" else 0.0
+        # For pick_above: high above cube
+        # For pick: small offset above cube top (not at center) to avoid going inside
+        if phase == "pick_above":
+            approach_height = 0.12
+        else:
+            approach_height = 0.01  # 1cm above cube top for grasping
         
         # Control loop with dynamic target tracking
         while iteration < max_iterations:
