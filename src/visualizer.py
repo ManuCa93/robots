@@ -195,6 +195,95 @@ class Visualizer:
                 plt.show()
 
     @staticmethod
+    def plot_joint_angles(history_data, title="Joint Angles Over Time", save_to_file=True):
+        """
+        Plot joint angles over time for all cubes.
+        
+        Args:
+            history_data: Dictionary with cube trajectories containing joint_angles
+            title: Plot title
+            save_to_file: Whether to save to file
+        """
+        if not history_data:
+            print("[WARN] No history data to plot.")
+            return
+
+        if save_to_file:
+            plt.switch_backend('Agg')
+            output_dir = "cubes_plot"
+            os.makedirs(output_dir, exist_ok=True)
+
+        print(f"[PLOT] Creating joint angle plots for {len(history_data)} objects.")
+        
+        # Determine control method from title
+        title_lower = title.lower()
+        if "joint" in title_lower:
+            title_color = 'darkorange'
+            mode_suffix = "joint"
+        elif "rrmc" in title_lower:
+            title_color = 'purple'
+            mode_suffix = "rrmc"
+        else:
+            title_color = 'darkgreen'
+            mode_suffix = "trajectory"
+
+        for name, data in history_data.items():
+            joint_angles_list = data.get('joint_angles', [])
+            
+            # Filter out None values
+            valid_indices = [i for i, ja in enumerate(joint_angles_list) if ja is not None]
+            if len(valid_indices) < 2:
+                print(f"[WARN] Not enough joint angle data for {name}, skipping.")
+                continue
+            
+            # Extract valid data
+            joint_angles = np.array([joint_angles_list[i] for i in valid_indices])
+            times = np.array([data['times'][i] for i in valid_indices])
+            
+            # Relative time
+            t_rel = times - times[0]
+            
+            # Number of joints (assuming 7 for Panda)
+            n_joints = joint_angles.shape[1]
+            
+            # Create figure with subplots for each joint
+            fig, axes = plt.subplots(n_joints, 1, figsize=(12, 2*n_joints), sharex=True)
+            fig.suptitle(f"{title} - {name.upper()}", fontsize=14, fontweight='bold', color=title_color)
+            
+            # Joint colors
+            colors = plt.cm.tab10(np.linspace(0, 1, n_joints))
+            
+            for i in range(n_joints):
+                ax = axes[i] if n_joints > 1 else axes
+                ax.plot(t_rel, np.rad2deg(joint_angles[:, i]), color=colors[i], linewidth=2, label=f'Joint {i+1}')
+                ax.set_ylabel(f'Joint {i+1}\n(deg)', fontsize=10)
+                ax.grid(True, linestyle='--', alpha=0.7)
+                ax.legend(loc='upper right')
+                
+                # Add horizontal line at 0
+                ax.axhline(0, color='black', linestyle=':', alpha=0.3)
+            
+            # Set x-label only on the bottom subplot
+            if n_joints > 1:
+                axes[-1].set_xlabel('Time (s)', fontsize=11)
+            else:
+                axes.set_xlabel('Time (s)', fontsize=11)
+            
+            plt.tight_layout()
+            
+            if save_to_file:
+                clean_name = name.replace(" ", "_")
+                timestamp = datetime.datetime.now().strftime("%H%M%S")
+                filename = f"{clean_name}_{mode_suffix}_{timestamp}_joint_angles.png"
+                png_path = os.path.join(output_dir, filename)
+                plt.savefig(png_path, dpi=150)
+                print(f"   [IMG] Saved Joint Angles Plot: {png_path}")
+                plt.close(fig)
+                gc.collect()
+            else:
+                plt.show()
+
+    @staticmethod
     def plot_workspace_overview(object_manager):
         """Plot an overview of the workspace."""
         fig = plt.figure(figsize=(10, 8))

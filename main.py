@@ -24,7 +24,7 @@ def main():
     pick_z = cube_center_z + cube_height / 2  
     
     # Choose control method: "rrmc" or "joint_space"
-    CONTROL_METHOD = "joint_space" 
+    CONTROL_METHOD = "rrmc" 
     
     # Generate cubes
     cube_positions_only = {
@@ -99,6 +99,9 @@ def main():
     
     # End-Effector Path Plot
     Visualizer.plot_end_effector_paths(history_data, title=f"Real End-Effector Trajectories ({CONTROL_METHOD})")
+    
+    # Joint Angles Plot
+    Visualizer.plot_joint_angles(history_data, title=f"Joint Angles Over Time ({CONTROL_METHOD})")
     
     # Overview Final
     Visualizer.plot_workspace_overview(obj_manager)

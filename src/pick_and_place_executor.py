@@ -181,7 +181,7 @@ class PickAndPlaceExecutor:
             
             # --- LOGGING WITH ERROR ---
             if self.recorder:
-                self.recorder.log_pose(cube_name, current_pose, error_val=pos_error_norm)
+                self.recorder.log_pose(cube_name, current_pose, error_val=pos_error_norm, joint_angles=self.robot.q)
             # --------------------------
             
             # Orientation error
@@ -243,7 +243,7 @@ class PickAndPlaceExecutor:
 
             # --- LOGGING WITH ERROR ---
             if self.recorder and cube_name:
-                self.recorder.log_pose(cube_name, current_pose, error_val=pos_error_norm)
+                self.recorder.log_pose(cube_name, current_pose, error_val=pos_error_norm, joint_angles=self.robot.q)
             # --------------------------
             
             # Orientation error

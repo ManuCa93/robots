@@ -4,21 +4,22 @@ import time
 import numpy as np
 
 class DataRecorder:
-    """Records robot end-effector positions, timestamps, and tracking errors."""
+    """Records robot end-effector positions, timestamps, tracking errors, and joint angles."""
     
     def __init__(self):
-        # Structure: { 'cube_name': { 'positions': [...], 'times': [...], 'errors': [...] } }
+        # Structure: { 'cube_name': { 'positions': [...], 'times': [...], 'errors': [...], 'joint_angles': [...] } }
         self.history = {}
         self.start_time = time.time()
 
-    def log_pose(self, name, robot_pose, error_val=0.0):
+    def log_pose(self, name, robot_pose, error_val=0.0, joint_angles=None):
         """
-        Records the current End-Effector position and error.
+        Records the current End-Effector position, error, and joint angles.
         
         Args:
             name: Name of the cube being manipulated (e.g., 'red1')
             robot_pose: SE3 pose (must have .t attribute)
             error_val: Current tracking error (default 0.0 for Joint Space)
+            joint_angles: Array of joint angles (optional)
         """
         if name is None: 
             return
@@ -35,13 +36,21 @@ class DataRecorder:
             self.history[name] = {
                 'positions': [],
                 'times': [],
-                'errors': []  # <--- NEW: List to store errors
+                'errors': [],  # <--- NEW: List to store errors
+                'joint_angles': []  # <--- NEW: List to store joint angles
             }
             
         # Save data
         self.history[name]['positions'].append(pos)
         self.history[name]['times'].append(current_t)
         self.history[name]['errors'].append(error_val) # <--- NEW: Save the error value
+        
+        # Save joint angles if provided
+        if joint_angles is not None:
+            self.history[name]['joint_angles'].append(np.array(joint_angles).copy())
+        else:
+            # Append None to keep lists synchronized
+            self.history[name]['joint_angles'].append(None)
 
     def get_data(self):
         """Returns the entire recorded history."""

@@ -144,7 +144,7 @@ class JointSpaceExecutor:
         # --- LOGGING ---
         if self.recorder and self.current_cube_name:
             current_pose = self.robot.fkine(q)
-            self.recorder.log_pose(self.current_cube_name, current_pose)
+            self.recorder.log_pose(self.current_cube_name, current_pose, joint_angles=q)
         # ----------------
         
         if attached and cube is not None and T_rel is not None:
