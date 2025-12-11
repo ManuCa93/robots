@@ -32,11 +32,6 @@ class RRMCController:
             target_pose: SE3 target pose
             q_start: Starting joint configuration
             max_iterations: Maximum iterations
-            
-        Returns:
-            q_final: Final joint configuration
-            qd_hist: History of joint velocities
-            cond_hist: History of condition numbers
         """
         # Set initial configuration
         robot.q = q_start.copy()

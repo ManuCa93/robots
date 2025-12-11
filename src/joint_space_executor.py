@@ -113,7 +113,7 @@ class JointSpaceExecutor:
             # Calculate safe target (prevents Z < cube height if we are at the end)
             target_z = cube_pos[2] + current_z_offset
             
-            # 180° rotation on X (gripper pointing down)
+            # 180 degrees rotation on X (gripper pointing down)
             target_pose = SE3(cube_pos[0], cube_pos[1], target_z) * SE3.Rx(np.pi)
             
             sol = self.robot.ikine_LM(target_pose, q0=self.robot.q)
@@ -141,11 +141,10 @@ class JointSpaceExecutor:
         self.robot.q = q
         self.env.set_robot_config(q)
         
-        # --- LOGGING ---
+        # logging
         if self.recorder and self.current_cube_name:
             current_pose = self.robot.fkine(q)
             self.recorder.log_pose(self.current_cube_name, current_pose, joint_angles=q)
-        # ----------------
         
         if attached and cube is not None and T_rel is not None:
             T_ee = self.robot.fkine(q)

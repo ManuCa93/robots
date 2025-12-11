@@ -21,7 +21,7 @@ class PickAndPlaceExecutor:
             recorder: DataRecorder instance (optional)
             sleep_dt: Sleep time between updates
             update_freq: Frequency of visualization updates
-            gravity_acceleration: Gravity acceleration for cube drop (m/s²)
+            gravity_acceleration: Gravity acceleration for cube drop (m/s^2)
         """
         self.robot = robot
         self.env = env
@@ -164,7 +164,7 @@ class PickAndPlaceExecutor:
         
         while iteration < max_iterations:
             
-            # Get current cube position (thread-safe)
+            # Get current cube position
             current_cube_pos = self.object_manager.get_current_cube_position(cube_name)
             
             if current_cube_pos is not None:
@@ -179,10 +179,9 @@ class PickAndPlaceExecutor:
             pos_error = target_pose.t - current_pose.t
             pos_error_norm = np.linalg.norm(pos_error)  # Calculate norm immediately
             
-            # --- LOGGING WITH ERROR ---
+            # Logging with error
             if self.recorder:
                 self.recorder.log_pose(cube_name, current_pose, error_val=pos_error_norm, joint_angles=self.robot.q)
-            # --------------------------
             
             # Orientation error
             R_current = current_pose.R
@@ -241,10 +240,9 @@ class PickAndPlaceExecutor:
             pos_error = target_pose.t - current_pose.t
             pos_error_norm = np.linalg.norm(pos_error) # Calculate norm immediately
 
-            # --- LOGGING WITH ERROR ---
+            # Logging with error
             if self.recorder and cube_name:
                 self.recorder.log_pose(cube_name, current_pose, error_val=pos_error_norm, joint_angles=self.robot.q)
-            # --------------------------
             
             # Orientation error
             R_current = current_pose.R

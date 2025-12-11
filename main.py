@@ -1,5 +1,3 @@
-"""Main execution script for robot pick-and-place task"""
-
 import numpy as np
 import time
 from src.robot_environment import RobotEnvironment
@@ -36,26 +34,26 @@ def main():
         'blue1':   np.array([0.5, -0.29, pick_z]),
     }
     
-    # 1. Initialize environment
+    # Initialize environment
     print("[INFO] Initializing robot environment...")
     env = RobotEnvironment()
     env.launch(realtime=True)
 
-    # 1.5 Initialize Data Recorder
-    recorder = DataRecorder() # <--- Creazione Recorder
+    # Initialize Data Recorder
+    recorder = DataRecorder()
 
-    # 2. Create objects
+    # Create objects
     print("[INFO] Creating objects...")
     obj_manager = ObjectManager(cube_size=CUBE_SIZE, plate_size=PLATE_SIZE)
     obj_manager.create_cubes(cube_positions_only, env)
     obj_manager.create_buckets(env.terrain_bounds, env, cube_height)
     
-    # 2.5 Start circular motion
+    # Start circular motion
     print("\n[INFO] Starting circular motion of cubes...")
     obj_manager.start_circular_motion(env)
     time.sleep(1.0) 
     
-    # 3. Plan trajectories
+    # Plan trajectories
     print("\n[INFO] Planning trajectories...")
     
     if CONTROL_METHOD == "joint_space":
@@ -72,7 +70,7 @@ def main():
         print("[ERROR] No valid trajectories computed. Exiting.")
         return
     
-    # 4. Execute pick-and-place
+    # Execute pick-and-place
     print(f"\n[INFO] Starting pick-and-place execution using {CONTROL_METHOD.upper()}...")
     
     if CONTROL_METHOD == "joint_space":
@@ -88,13 +86,13 @@ def main():
                                         recorder=recorder, sleep_dt=0.005)
         executor.execute_all(trajectories)
     
-    # 5. Stop circular motion
+    # Stop circular motion
     obj_manager.stop_circular_motion()
     
-    # 6. Visualize results
+    # Visualize results
     print("\n[INFO] Generating visualization...")
     
-    # Recupera i dati dal recorder
+    # Get recorded data
     history_data = recorder.get_data()
     
     # End-Effector Path Plot

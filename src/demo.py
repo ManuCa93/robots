@@ -21,7 +21,7 @@ cube_pick_positions = {
     'blue': np.array([0.5, 0.13, CUBE_SIZE]),
 }
 
-# 1. Initialize environment
+# Initialize environment
 print("="*60)
 print("DEMO: RRMC vs Joint-Space Control")
 print("="*60)
@@ -29,7 +29,7 @@ print("="*60)
 env = RobotEnvironment()
 env.launch(realtime=True)
 
-# 2. Create objects
+# Create objects
 obj_manager = ObjectManager(cube_size=CUBE_SIZE, plate_size=PLATE_SIZE)
 obj_manager.create_cubes(cube_pick_positions, env)
 obj_manager.create_plates(env.terrain_bounds, env)

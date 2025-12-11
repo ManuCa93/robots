@@ -88,9 +88,6 @@ class ObjectManager:
         Args:
             terrain_bounds: Dictionary with x_min, x_max, y_min, y_max
             num_plates: Number of plates to place
-            
-        Returns:
-            List of positions
         """
         min_distance = self.plate_size * 1.5
         positions = []
@@ -242,9 +239,6 @@ class ObjectManager:
     def get_pick_place_pairs(self):
         """
         Get pick and place positions for each object.
-        
-        Returns:
-            Dictionary mapping color names to (pick_pos, place_pos) tuples
         """
         pairs = {}
         

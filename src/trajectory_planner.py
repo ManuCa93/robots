@@ -29,10 +29,6 @@ class TrajectoryPlanner:
         Args:
             position: Target position (x, y, z)
             z_offset: Vertical offset from position
-            
-        Returns:
-            q: Joint configuration
-            success: Boolean indicating success
         """
         target = np.array(position).copy()
         target[2] += z_offset
@@ -49,9 +45,6 @@ class TrajectoryPlanner:
         Args:
             pick_pos: Pick position (x, y, z)
             place_pos: Place position (x, y, z)
-            
-        Returns:
-            Dictionary with poses and IK solutions, or None if IK fails
         """
         # Create SE3 poses
         poses = {
@@ -98,9 +91,6 @@ class TrajectoryPlanner:
         
         Args:
             pick_place_pairs: Dictionary mapping names to (pick_pos, place_pos)
-            
-        Returns:
-            Dictionary mapping names to trajectory data
         """
         trajectories = {}
         

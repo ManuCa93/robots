@@ -7,7 +7,6 @@ class DataRecorder:
     """Records robot end-effector positions, timestamps, tracking errors, and joint angles."""
     
     def __init__(self):
-        # Structure: { 'cube_name': { 'positions': [...], 'times': [...], 'errors': [...], 'joint_angles': [...] } }
         self.history = {}
         self.start_time = time.time()
 
@@ -25,7 +24,6 @@ class DataRecorder:
             return
         
         # Extract translation (x, y, z) directly assuming SE3 object
-        # (We removed the if/else checks as requested, assuming input is always SE3)
         pos = robot_pose.t
             
         # Calculate relative time from start
@@ -36,14 +34,14 @@ class DataRecorder:
             self.history[name] = {
                 'positions': [],
                 'times': [],
-                'errors': [],  # <--- NEW: List to store errors
-                'joint_angles': []  # <--- NEW: List to store joint angles
+                'errors': [],  
+                'joint_angles': []  
             }
             
         # Save data
         self.history[name]['positions'].append(pos)
         self.history[name]['times'].append(current_t)
-        self.history[name]['errors'].append(error_val) # <--- NEW: Save the error value
+        self.history[name]['errors'].append(error_val) 
         
         # Save joint angles if provided
         if joint_angles is not None:

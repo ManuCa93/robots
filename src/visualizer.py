@@ -1,13 +1,12 @@
 import numpy as np
 import matplotlib
-# --- FIX: Backend non interattivo per evitare crash e finestre bianche ---
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation, PillowWriter
 import os
 import datetime
-import gc # Garbage Collector per pulire la memoria
+import gc # Garbage collector 
 
 class Visualizer:
     """Handles visualization, plotting, and saving animations."""
@@ -22,13 +21,12 @@ class Visualizer:
             print("[WARN] No history data to plot.")
             return
 
-        # Forza backend Agg se salviamo (evita crash di Tkinter)
         if save_to_file:
             plt.switch_backend('Agg')
 
         print(f"[PLOT] Starting Processing for {len(history_data)} objects.")
         
-        # Gestione Colori Titolo
+        # Determine control method 
         title_lower = title.lower()
         if "joint" in title_lower:
             title_color = 'darkorange'
@@ -47,31 +45,29 @@ class Visualizer:
 
         for name, data in history_data.items():
             
-            # --- 1. PREPARAZIONE DATI GREZZI ---
+            # prepare raw data
             raw_pos = np.array(data['positions'])
             raw_times = np.array(data['times'])
-            # Recupera errori (se non esistono, riempi di zeri)
             raw_errors = np.array(data.get('errors', [0]*len(raw_pos)))
             
             if len(raw_pos) < 2: continue
             
-            # Tempo relativo
+            # relative time
             t_start = raw_times[0]
             raw_t_rel = raw_times - t_start
             total_duration = raw_t_rel[-1]
             
-            # --- 2. SINCRONIZZAZIONE TEMPORALE (RESAMPLING) ---
-            # Questo assicura che 1 secondo di simulazione = 1 secondo di GIF
-            # Indipendentemente da Joint Space (lento) o RRMC (veloce)
+            # resampling
+            # this ensures uniform time steps for smooth animation for both rrmc and joint-space
             TARGET_FPS = 20
             
             num_frames = int(total_duration * TARGET_FPS)
             if num_frames < 2: num_frames = 2
             
-            # Nuovi tempi uniformi
+            # New uniform time 
             t_rel = np.linspace(0, total_duration, num_frames)
             
-            # Interpolazione dati sui nuovi tempi
+            # interpolate positions and errors
             pos_x = np.interp(t_rel, raw_t_rel, raw_pos[:, 0])
             pos_y = np.interp(t_rel, raw_t_rel, raw_pos[:, 1])
             pos_z = np.interp(t_rel, raw_t_rel, raw_pos[:, 2])
@@ -80,14 +76,13 @@ class Visualizer:
             positions = np.column_stack((pos_x, pos_y, pos_z))
             num_points = len(positions)
             
-            # Generazione nomi file
+            # Generate filenames
             clean_name = name.replace(" ", "_")
             timestamp = datetime.datetime.now().strftime("%H%M%S")
             filename_base = f"{clean_name}_{mode_suffix}_{timestamp}"
 
-            # ==========================================
-            # FASE A: SALVATAGGIO IMMAGINE STATICA (PNG)
-            # ==========================================
+
+            # Save static error plot
             if save_to_file:
                 fig_static = plt.figure(figsize=(10, 6))
                 plt.plot(t_rel, errors, color='crimson', linewidth=2, label='Position Error')
@@ -115,7 +110,7 @@ class Visualizer:
             full_title = f"{title}\nREAL-TIME PLAYBACK: {name.upper()} ({total_duration:.2f}s)"
             fig.suptitle(full_title, fontsize=14, fontweight='bold', color=title_color)
 
-            # 1. 3D VIEW 
+            # 3D VIEW 
             ax3d = fig.add_subplot(1, 3, 1, projection='3d')
             ax3d.plot(positions[:, 0], positions[:, 1], positions[:, 2], 
                       color='navy', alpha=0.5, linewidth=1.0, linestyle='--')
@@ -133,7 +128,7 @@ class Visualizer:
             ax3d.set_zlim(0, 0.7)
             ax3d.legend(loc='upper left')
 
-            # 2. HEIGHT PROFILE 
+            # Height profile 
             ax_z = fig.add_subplot(1, 3, 2)
             ax_z.plot(t_rel, positions[:, 2], color='purple', linewidth=2, alpha=0.3)
             vline_z = ax_z.axvline(t_rel[0], color='red', linewidth=2, alpha=0.8)
@@ -143,7 +138,7 @@ class Visualizer:
             ax_z.set_xlabel("Time (s)"); ax_z.set_ylabel("Height (m)")
             ax_z.grid(True)
 
-            # 3. ERROR PROFILE 
+            # Error profile
             ax_err = fig.add_subplot(1, 3, 3)
             ax_err.plot(t_rel, errors, color='crimson', linewidth=1.5, alpha=0.4)
             vline_err = ax_err.axvline(t_rel[0], color='black', linewidth=1.5, linestyle='--')
@@ -243,7 +238,7 @@ class Visualizer:
             # Relative time
             t_rel = times - times[0]
             
-            # Number of joints (assuming 7 for Panda)
+            # Number of joints
             n_joints = joint_angles.shape[1]
             
             # Create figure with subplots for each joint

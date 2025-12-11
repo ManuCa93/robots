@@ -25,9 +25,6 @@ class JointSpaceController:
         Args:
             q_start: Starting joint configuration (7 joints for Panda)
             q_goal: Goal joint configuration (7 joints for Panda)
-            
-        Returns:
-            trajectory: Array of shape (n_points, 7) with joint configurations
         """
         t = np.linspace(0, self.duration, self.n_points)
         n_joints = len(q_start)
@@ -47,9 +44,6 @@ class JointSpaceController:
         Args:
             q_home: Home configuration
             ik_solutions: Dictionary with IK solutions for waypoints
-            
-        Returns:
-            Dictionary with trajectory segments
         """
         trajectories = {
             "home_to_pick_above": self.generate_trajectory(q_home, ik_solutions["pick_above"]),
