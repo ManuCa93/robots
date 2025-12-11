@@ -10,7 +10,7 @@ from src.trajectory_planner import TrajectoryPlanner
 from src.pick_and_place_executor import PickAndPlaceExecutor
 from src.joint_space_executor import JointSpaceExecutor
 from src.visualizer import Visualizer
-
+from src.recorder import DataRecorder  # <--- IMPORTANTE
 
 def main():
     """Main execution function."""
@@ -24,9 +24,9 @@ def main():
     pick_z = cube_center_z + cube_height / 2  
     
     # Choose control method: "rrmc" or "joint_space"
-    CONTROL_METHOD = "joint_space"  
+    CONTROL_METHOD = "rrmc"  # Puoi cambiare in "joint_space"
     
-    # Generate 4 red cubes, 2 green, 1 blue, 1 yellow
+    # Generate cubes
     cube_positions_only = {
         'red1':    np.array([0.5,  0.31, pick_z]),
         'red2':    np.array([0.5,  0.19, pick_z]),
@@ -41,6 +41,9 @@ def main():
     env = RobotEnvironment()
     env.launch(realtime=True)
 
+    # 1.5 Initialize Data Recorder
+    recorder = DataRecorder() # <--- Creazione Recorder
+
     # 2. Create objects
     print("[INFO] Creating objects...")
     obj_manager = ObjectManager(cube_size=CUBE_SIZE, plate_size=PLATE_SIZE)
@@ -48,11 +51,9 @@ def main():
     obj_manager.create_buckets(env.terrain_bounds, env, cube_height)
     
     # 2.5 Start circular motion
-    # Attivato per ENTRAMBI i metodi
-    if CONTROL_METHOD == "rrmc" or CONTROL_METHOD == "joint_space":
-        print("\n[INFO] Starting circular motion of cubes...")
-        obj_manager.start_circular_motion(env)
-        time.sleep(1.0)  # Let cubes start moving
+    print("\n[INFO] Starting circular motion of cubes...")
+    obj_manager.start_circular_motion(env)
+    time.sleep(1.0) 
     
     # 3. Plan trajectories
     print("\n[INFO] Planning trajectories...")
@@ -71,32 +72,38 @@ def main():
         print("[ERROR] No valid trajectories computed. Exiting.")
         return
     
-    # 4. Execute pick-and-place operations based on control method
+    # 4. Execute pick-and-place
     print(f"\n[INFO] Starting pick-and-place execution using {CONTROL_METHOD.upper()}...")
     
     if CONTROL_METHOD == "joint_space":
-        # Passiamo solo le traiettorie di base, l'executor calcolerà il pick dinamicamente
         joint_trajs = {name: data.get("joint_trajectories", {}) for name, data in trajectories.items()}
-        executor = JointSpaceExecutor(env.panda, env, js_controller, obj_manager, sleep_dt=0.02)
-        # Ora questo metodo esiste!
+        # Passiamo il recorder qui
+        executor = JointSpaceExecutor(env.panda, env, js_controller, obj_manager, 
+                                      recorder=recorder, sleep_dt=0.02)
         executor.execute_all(joint_trajs)
     else:
         rrmc = RRMCController(dt=0.01, position_tol=0.005, orientation_tol=0.02, lambda_damping=0.1, gain=8.0)
-        executor = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager, sleep_dt=0.005)
+        # Passiamo il recorder qui
+        executor = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager, 
+                                        recorder=recorder, sleep_dt=0.005)
         executor.execute_all(trajectories)
     
     # 5. Stop circular motion
-    if CONTROL_METHOD == "rrmc" or CONTROL_METHOD == "joint_space":
-        obj_manager.stop_circular_motion()
+    obj_manager.stop_circular_motion()
     
     # 6. Visualize results
     print("\n[INFO] Generating visualization...")
-    if CONTROL_METHOD == "rrmc":
-        Visualizer.plot_rrmc_waypoints(trajectories)
+    
+    # Recupera i dati dal recorder
+    history_data = recorder.get_data()
+    
+    # Plotta le traiettorie reali (End-Effector Path)
+    Visualizer.plot_end_effector_paths(history_data, title=f"Real End-Effector Trajectories ({CONTROL_METHOD})")
+    
+    # Overview finale (opzionale)
     Visualizer.plot_workspace_overview(obj_manager)
     
     print("\n[SUCCESS] All operations completed successfully!")
-
 
 if __name__ == "__main__":
     main()

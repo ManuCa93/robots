@@ -8,7 +8,7 @@ from spatialmath import SE3
 class PickAndPlaceExecutor:
     """Executes pick-and-place operations using RRMC."""
     
-    def __init__(self, robot, env, rrmc_controller, object_manager, 
+    def __init__(self, robot, env, rrmc_controller, object_manager, recorder=None,
                  sleep_dt=0.005, update_freq=10, gravity_acceleration=0.5):
         """
         Initialize executor.
@@ -18,6 +18,7 @@ class PickAndPlaceExecutor:
             env: RobotEnvironment instance
             rrmc_controller: RRMCController instance
             object_manager: ObjectManager instance
+            recorder: DataRecorder instance (optional)
             sleep_dt: Sleep time between updates
             update_freq: Frequency of visualization updates
             gravity_acceleration: Gravity acceleration for cube drop (m/s²)
@@ -26,6 +27,7 @@ class PickAndPlaceExecutor:
         self.env = env
         self.rrmc_controller = rrmc_controller
         self.object_manager = object_manager
+        self.recorder = recorder  # Reference to DataRecorder
         self.sleep_dt = sleep_dt
         self.update_freq = update_freq
         self.gravity_acceleration = gravity_acceleration
@@ -68,12 +70,12 @@ class PickAndPlaceExecutor:
             # Phase 3: pick -> pick_above (lifting with cube)
             print(f"[RRMC] {name}: Lifting with cube")
             q_current = self._rrmc_move_with_viz(poses["pick_above"], q_current, 
-                                                  cube_attached=True, T_rel=T_rel, cube=cube)
+                                                  cube_attached=True, T_rel=T_rel, cube=cube, cube_name=name)
             
             # Phase 4: pick_above -> place_above (transporting)
             print(f"[RRMC] {name}: Transporting to place_above")
             q_current = self._rrmc_move_with_viz(poses["place_above"], q_current, 
-                                                  cube_attached=True, T_rel=T_rel, cube=cube)
+                                                  cube_attached=True, T_rel=T_rel, cube=cube, cube_name=name)
             
             # Phase 5: Release cube and simulate gravity drop
             print(f"[RRMC] {name}: Releasing cube with gravity")
@@ -105,107 +107,77 @@ class PickAndPlaceExecutor:
             
             # Phase 7: place_above -> home (returning)
             print(f"[RRMC] {name}: Returning to home")
-            q_current = self._rrmc_move_with_viz(poses["home"], q_current)
+            q_current = self._rrmc_move_with_viz(poses["home"], q_current, cube_name=name)
             
             print(f"[RRMC] {name}: Completed successfully")
             
         except Exception as e:
             print(f"[ERROR] Failed to execute pick-and-place for {name}: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _simulate_gravity_drop(self, cube, start_pos, target_pos):
-        """
-        Simulate gravity drop of cube from current position to target.
-        
-        Args:
-            cube: Cube object to drop
-            start_pos: Starting position (x, y, z)
-            target_pos: Target position (x, y, z)
-        """
+        """Simulate gravity drop of cube from current position to target."""
+        # Gravity drop does not move the robot, so no logging needed for robot EE here
         print(f"[GRAVITY] Start pos: {start_pos}")
         print(f"[GRAVITY] Target pos: {target_pos}")
         
-        # Calculate drop distance
         drop_distance = start_pos[2] - target_pos[2]
         print(f"[GRAVITY] Drop distance: {drop_distance:.4f}m")
         
         if drop_distance <= 0:
-            # Already at or below target, just set position
             print(f"[GRAVITY] No drop needed (distance <= 0)")
             cube.T = SE3(target_pos[0], target_pos[1], target_pos[2])
             return
         
-        # Physics: v² = u² + 2as, where u=0 (initial velocity)
-        # Time to fall: t = sqrt(2*h/g)
         fall_time = np.sqrt(2 * drop_distance / self.gravity_acceleration)
-        
-        # Number of steps for smooth animation
         num_steps = max(int(fall_time / self.sleep_dt), 10)
         
         print(f"[GRAVITY] Fall time: {fall_time:.3f}s, Steps: {num_steps}")
         
-        # Simulate falling with increasing velocity
         for step in range(num_steps + 1):
             t = (step / num_steps) * fall_time
-            
-            # Calculate height using kinematic equation: h = h0 - 0.5*g*t²
             current_z = start_pos[2] - 0.5 * self.gravity_acceleration * t**2
-            
-            # Ensure we don't go below target
             current_z = max(current_z, target_pos[2])
             
-            # Update cube position (x, y stay the same, only z changes)
             cube.T = SE3(target_pos[0], target_pos[1], current_z)
             
-            # Update visualization
             self.env.step(self.sleep_dt)
             time.sleep(self.sleep_dt)
             
-            # Stop if we've reached the target
             if current_z <= target_pos[2]:
                 break
         
-        # Ensure final position is exactly at target
         cube.T = SE3(target_pos[0], target_pos[1], target_pos[2])
             
     def _rrmc_move_with_viz_tracking(self, initial_target_pose, q_start, cube_name, phase="pick_above"):
-        """
-        Execute RRMC motion while tracking a moving cube.
-        
-        Args:
-            initial_target_pose: Initial target SE3 pose
-            q_start: Starting joint configuration
-            cube_name: Name of the cube to track
-            phase: Phase of motion ("pick_above" or "pick")
-            
-        Returns:
-            Final joint configuration
-        """
-        # Set initial configuration
+        """Execute RRMC motion while tracking a moving cube."""
         self.robot.q = q_start.copy()
         
         iteration = 0
         max_iterations = 5000
         
-        # For pick_above: high above cube
-        # For pick: small offset above cube top (not at center) to avoid going inside
         if phase == "pick_above":
             approach_height = 0.12
         else:
             approach_height = 0.01  # 1cm above cube top for grasping
         
-        # Control loop with dynamic target tracking
         while iteration < max_iterations:
+            # --- LOGGING ---
+            if self.recorder:
+                current_pose = self.robot.fkine(self.robot.q)
+                self.recorder.log_pose(cube_name, current_pose)
+            # ----------------
+            
             # Get current cube position (thread-safe)
             current_cube_pos = self.object_manager.get_current_cube_position(cube_name)
             
             if current_cube_pos is not None:
-                # Update target pose based on current cube position
                 target_pose = SE3(current_cube_pos[0], current_cube_pos[1], 
                                  current_cube_pos[2] + approach_height) * SE3.Rx(np.pi)
             else:
                 target_pose = initial_target_pose
             
-            # Get current pose
             current_pose = self.robot.fkine(self.robot.q)
             
             # Position error
@@ -253,28 +225,20 @@ class PickAndPlaceExecutor:
                 
         return self.robot.q
     
-    def _rrmc_move_with_viz(self, target_pose, q_start, cube_attached=False, T_rel=None, cube=None):
-        """
-        Execute RRMC motion with visualization using 6-DOF control.
-        
-        Args:
-            target_pose: Target SE3 pose
-            q_start: Starting joint configuration
-            cube_attached: Whether cube is attached
-            T_rel: Relative transform for cube
-            cube: Cube object to move
-            
-        Returns:
-            Final joint configuration
-        """
-        # Set initial configuration
+    def _rrmc_move_with_viz(self, target_pose, q_start, cube_attached=False, T_rel=None, cube=None, cube_name=None):
+        """Execute RRMC motion with visualization using 6-DOF control."""
         self.robot.q = q_start.copy()
         
         iteration = 0
         max_iterations = 5000
         
-        # Control loop with 6-DOF control
         while iteration < max_iterations:
+            # --- LOGGING ---
+            if self.recorder and cube_name:
+                current_pose = self.robot.fkine(self.robot.q)
+                self.recorder.log_pose(cube_name, current_pose)
+            # ----------------
+
             # Get current pose
             current_pose = self.robot.fkine(self.robot.q)
             

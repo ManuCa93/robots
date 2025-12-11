@@ -7,16 +7,18 @@ from spatialmath import SE3
 class JointSpaceExecutor:
     """Executes pick-and-place operations using dynamic joint-space servoing."""
     
-    def __init__(self, robot, env, joint_space_controller, object_manager, sleep_dt=0.02, gravity_acceleration=2.0):
+    def __init__(self, robot, env, joint_space_controller, object_manager, recorder=None, sleep_dt=0.02, gravity_acceleration=2.0):
         self.robot = robot
         self.env = env
         self.controller = joint_space_controller
         self.object_manager = object_manager
+        self.recorder = recorder  # Reference to DataRecorder
         self.sleep_dt = sleep_dt
         self.gravity_acceleration = gravity_acceleration
         
         # Guadagno del servoing
         self.servo_gain = 0.8 
+        self.current_cube_name = None  # Track current object for logging
 
     def execute_all(self, trajectories):
         for idx, (name, traj_data) in enumerate(trajectories.items(), 1):
@@ -24,6 +26,7 @@ class JointSpaceExecutor:
             self.execute_single(name, traj_data)
 
     def execute_single(self, name, trajectory_data):
+        self.current_cube_name = name  # Set context for logging
         cube = self.object_manager.cubes[name]
         
         try:
@@ -143,6 +146,12 @@ class JointSpaceExecutor:
     def _step_robot(self, q, cube=None, T_rel=None, attached=False):
         self.robot.q = q
         self.env.set_robot_config(q)
+        
+        # --- LOGGING ---
+        if self.recorder and self.current_cube_name:
+            current_pose = self.robot.fkine(q)
+            self.recorder.log_pose(self.current_cube_name, current_pose)
+        # ----------------
         
         if attached and cube is not None and T_rel is not None:
             T_ee = self.robot.fkine(q)
