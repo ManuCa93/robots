@@ -122,27 +122,6 @@ class ObjectManager:
             terrain_bounds: Dictionary with x_min, x_max, y_min, y_max
             env: RobotEnvironment instance
         """
-        # colors = {
-        #     'red': [1, 0, 0, 0.5],
-        #     'blue': [0, 0, 1, 0.5],
-        #     'green': [0, 1, 0, 0.5],
-        #     'yellow': [1, 1, 0, 0.5]
-        # }
-        
-        # # plate_positions = self.generate_plate_positions(terrain_bounds, num_plates=4)
-        
-        # for idx, (name, color) in enumerate(colors.items()):
-        #     pos = plate_positions[idx]
-        #     plate = Cuboid(
-        #         [self.plate_size, self.plate_size, self.plate_height],
-        #         pose=SE3(*pos),
-        #         color=color
-        #     )
-        #     self.plates[name] = plate
-        #     self.plate_positions[name] = pos
-        #     env.add_object(plate)
-            
-        # print(f"[INFO] Created {len(self.plates)} plates with random positions")
         color_names = ['red', 'blue', 'green', 'yellow']
         color_map = {
             'red': [1, 0, 0, 0.5],
@@ -151,7 +130,7 @@ class ObjectManager:
             'yellow': [1, 1, 0, 0.5]
         }
 
-        # Posizioni fisse
+        # Fixed positions
         fixed_positions = [
             (0.30, -0.50),  # bottom-left
             (0.55, -0.50),  # bottom-right
@@ -159,14 +138,14 @@ class ObjectManager:
             (0.55, 0.50),   # top-right
         ]
 
-        # Randomizza l'assegnazione colori -> posizioni
+        # Randomize color assignment 
         import random
         shuffled_colors = color_names.copy()
         random.shuffle(shuffled_colors)
 
         corners = {shuffled_colors[i]: fixed_positions[i] for i in range(4)}
 
-        # Calcola terrain_bounds in base alle posizioni dei bucket
+        # Calculate terrain_bounds based on bucket positions
         bucket_positions = list(corners.values())
         bucket_x = [pos[0] for pos in bucket_positions]
         bucket_y = [pos[1] for pos in bucket_positions]
@@ -187,7 +166,7 @@ class ObjectManager:
         for color, (x, y) in corners.items():
             print(f"  {color.upper():7s}: ({x:.2f}, {y:.2f})")
 
-        # Parametri del secchio
+        # Bucket parameters
         bucket_inner_diameter = 0.12
         bucket_wall_thickness = 0.01
         bucket_outer_diameter = bucket_inner_diameter + 2 * bucket_wall_thickness

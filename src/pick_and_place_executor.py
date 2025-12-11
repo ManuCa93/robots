@@ -9,7 +9,7 @@ class PickAndPlaceExecutor:
     """Executes pick-and-place operations using RRMC."""
     
     def __init__(self, robot, env, rrmc_controller, object_manager, recorder=None,
-                 sleep_dt=0.005, update_freq=10, gravity_acceleration=0.5):
+                 sleep_dt=0.005, update_freq=10, gravity_acceleration=2):
         """
         Initialize executor.
         
@@ -70,12 +70,12 @@ class PickAndPlaceExecutor:
             # Phase 3: pick -> pick_above (lifting with cube)
             print(f"[RRMC] {name}: Lifting with cube")
             q_current = self._rrmc_move_with_viz(poses["pick_above"], q_current, 
-                                                  cube_attached=True, T_rel=T_rel, cube=cube, cube_name=name)
+                                                cube_attached=True, T_rel=T_rel, cube=cube, cube_name=name)
             
             # Phase 4: pick_above -> place_above (transporting)
             print(f"[RRMC] {name}: Transporting to place_above")
             q_current = self._rrmc_move_with_viz(poses["place_above"], q_current, 
-                                                  cube_attached=True, T_rel=T_rel, cube=cube, cube_name=name)
+                                                cube_attached=True, T_rel=T_rel, cube=cube, cube_name=name)
             
             # Phase 5: Release cube and simulate gravity drop
             print(f"[RRMC] {name}: Releasing cube with gravity")
@@ -163,11 +163,6 @@ class PickAndPlaceExecutor:
             approach_height = 0.01  # 1cm above cube top for grasping
         
         while iteration < max_iterations:
-            # --- LOGGING ---
-            if self.recorder:
-                current_pose = self.robot.fkine(self.robot.q)
-                self.recorder.log_pose(cube_name, current_pose)
-            # ----------------
             
             # Get current cube position (thread-safe)
             current_cube_pos = self.object_manager.get_current_cube_position(cube_name)
@@ -182,6 +177,12 @@ class PickAndPlaceExecutor:
             
             # Position error
             pos_error = target_pose.t - current_pose.t
+            pos_error_norm = np.linalg.norm(pos_error)  # Calculate norm immediately
+            
+            # --- LOGGING WITH ERROR ---
+            if self.recorder:
+                self.recorder.log_pose(cube_name, current_pose, error_val=pos_error_norm)
+            # --------------------------
             
             # Orientation error
             R_current = current_pose.R
@@ -194,7 +195,6 @@ class PickAndPlaceExecutor:
             ]) / 2.0
             
             # Check convergence
-            pos_error_norm = np.linalg.norm(pos_error)
             ori_error_norm = np.linalg.norm(ori_error)
             
             if pos_error_norm < self.rrmc_controller.position_tol and ori_error_norm < self.rrmc_controller.orientation_tol:
@@ -233,17 +233,18 @@ class PickAndPlaceExecutor:
         max_iterations = 5000
         
         while iteration < max_iterations:
-            # --- LOGGING ---
-            if self.recorder and cube_name:
-                current_pose = self.robot.fkine(self.robot.q)
-                self.recorder.log_pose(cube_name, current_pose)
-            # ----------------
-
+            
             # Get current pose
             current_pose = self.robot.fkine(self.robot.q)
             
             # Position error
             pos_error = target_pose.t - current_pose.t
+            pos_error_norm = np.linalg.norm(pos_error) # Calculate norm immediately
+
+            # --- LOGGING WITH ERROR ---
+            if self.recorder and cube_name:
+                self.recorder.log_pose(cube_name, current_pose, error_val=pos_error_norm)
+            # --------------------------
             
             # Orientation error
             R_current = current_pose.R
@@ -256,7 +257,6 @@ class PickAndPlaceExecutor:
             ]) / 2.0
             
             # Check convergence
-            pos_error_norm = np.linalg.norm(pos_error)
             ori_error_norm = np.linalg.norm(ori_error)
             
             if pos_error_norm < self.rrmc_controller.position_tol and ori_error_norm < self.rrmc_controller.orientation_tol:

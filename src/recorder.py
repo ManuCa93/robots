@@ -4,49 +4,45 @@ import time
 import numpy as np
 
 class DataRecorder:
-    """Records robot end-effector positions and timestamps."""
+    """Records robot end-effector positions, timestamps, and tracking errors."""
     
     def __init__(self):
-        # Struttura: { 'nome_cubo': { 'positions': [[x,y,z], ...], 'times': [t0, t1...] } }
+        # Structure: { 'cube_name': { 'positions': [...], 'times': [...], 'errors': [...] } }
         self.history = {}
         self.start_time = time.time()
 
-    def log_pose(self, name, robot_pose):
+    def log_pose(self, name, robot_pose, error_val=0.0):
         """
-        Registra la posizione corrente dell'End-Effector.
+        Records the current End-Effector position and error.
         
         Args:
-            name: Nome del cubo che si sta manipolando (es. 'red1')
-            robot_pose: Posa SE3 o matrice 4x4 o vettore posizione
+            name: Name of the cube being manipulated (e.g., 'red1')
+            robot_pose: SE3 pose (must have .t attribute)
+            error_val: Current tracking error (default 0.0 for Joint Space)
         """
         if name is None: 
             return
         
-        # Estrai la traslazione (x, y, z) dalla posa
-        # Se robot_pose è un oggetto SE3 di spatialmath, usa .t
-        if hasattr(robot_pose, 't'):
-            pos = robot_pose.t
-        # Se è una matrice numpy 4x4
-        elif isinstance(robot_pose, np.ndarray) and robot_pose.shape == (4, 4):
-            pos = robot_pose[:3, 3]
-        # Se è già un vettore posizione
-        else:
-            pos = np.array(robot_pose)
+        # Extract translation (x, y, z) directly assuming SE3 object
+        # (We removed the if/else checks as requested, assuming input is always SE3)
+        pos = robot_pose.t
             
-        # Calcola il tempo relativo dall'inizio
+        # Calculate relative time from start
         current_t = time.time() - self.start_time
         
-        # Inizializza la lista per questo cubo se non esiste
+        # Initialize list for this cube if it doesn't exist
         if name not in self.history:
             self.history[name] = {
                 'positions': [],
-                'times': []
+                'times': [],
+                'errors': []  # <--- NEW: List to store errors
             }
             
-        # Salva i dati
+        # Save data
         self.history[name]['positions'].append(pos)
         self.history[name]['times'].append(current_t)
+        self.history[name]['errors'].append(error_val) # <--- NEW: Save the error value
 
     def get_data(self):
-        """Restituisce tutto lo storico registrato."""
+        """Returns the entire recorded history."""
         return self.history

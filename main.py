@@ -10,7 +10,7 @@ from src.trajectory_planner import TrajectoryPlanner
 from src.pick_and_place_executor import PickAndPlaceExecutor
 from src.joint_space_executor import JointSpaceExecutor
 from src.visualizer import Visualizer
-from src.recorder import DataRecorder  # <--- IMPORTANTE
+from src.recorder import DataRecorder  
 
 def main():
     """Main execution function."""
@@ -24,7 +24,7 @@ def main():
     pick_z = cube_center_z + cube_height / 2  
     
     # Choose control method: "rrmc" or "joint_space"
-    CONTROL_METHOD = "rrmc"  # Puoi cambiare in "joint_space"
+    CONTROL_METHOD = "joint_space" 
     
     # Generate cubes
     cube_positions_only = {
@@ -77,13 +77,13 @@ def main():
     
     if CONTROL_METHOD == "joint_space":
         joint_trajs = {name: data.get("joint_trajectories", {}) for name, data in trajectories.items()}
-        # Passiamo il recorder qui
+        
         executor = JointSpaceExecutor(env.panda, env, js_controller, obj_manager, 
                                       recorder=recorder, sleep_dt=0.02)
         executor.execute_all(joint_trajs)
     else:
         rrmc = RRMCController(dt=0.01, position_tol=0.005, orientation_tol=0.02, lambda_damping=0.1, gain=8.0)
-        # Passiamo il recorder qui
+        
         executor = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager, 
                                         recorder=recorder, sleep_dt=0.005)
         executor.execute_all(trajectories)
@@ -97,10 +97,10 @@ def main():
     # Recupera i dati dal recorder
     history_data = recorder.get_data()
     
-    # Plotta le traiettorie reali (End-Effector Path)
+    # End-Effector Path Plot
     Visualizer.plot_end_effector_paths(history_data, title=f"Real End-Effector Trajectories ({CONTROL_METHOD})")
     
-    # Overview finale (opzionale)
+    # Overview Final
     Visualizer.plot_workspace_overview(obj_manager)
     
     print("\n[SUCCESS] All operations completed successfully!")

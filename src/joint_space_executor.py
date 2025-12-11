@@ -12,11 +12,10 @@ class JointSpaceExecutor:
         self.env = env
         self.controller = joint_space_controller
         self.object_manager = object_manager
-        self.recorder = recorder  # Reference to DataRecorder
+        self.recorder = recorder  # Reference to DataRecorder for animated plot
         self.sleep_dt = sleep_dt
         self.gravity_acceleration = gravity_acceleration
         
-        # Guadagno del servoing
         self.servo_gain = 0.8 
         self.current_cube_name = None  # Track current object for logging
 
@@ -30,32 +29,27 @@ class JointSpaceExecutor:
         cube = self.object_manager.cubes[name]
         
         try:
-            # --- FASE 0: Avvicinamento Statico Fluido ---
-            # Ci portiamo in zona "alta" (25cm) con una traiettoria calcolata (spline)
-            # Questo evita lo scatto iniziale dalla Home.
+            # --- PHASE 0: Smooth Static Approach ---
             print(f"[Joint-Space] {name}: Smooth Approach (High)...")
             cube_pos_init = self.object_manager.get_current_cube_position(name)
             
             if cube_pos_init is not None:
-                # Target iniziale ALTO: 25cm sopra il cubo
+                # Initial HIGH target: 25cm above the cube
                 target_approach = SE3(cube_pos_init[0], cube_pos_init[1], cube_pos_init[2] + 0.25) * SE3.Rx(np.pi)
                 
                 sol = self.robot.ikine_LM(target_approach, q0=self.robot.q)
                 if sol.success:
                     self._move_joints_direct(sol.q)
             
-            # --- FASE 1: Discesa di Ingaggio (NUOVA) ---
-            # Invece di saltare subito a 12cm, scendiamo fluidamente da 25cm a 12cm
-            # MENTRE iniziamo a inseguire (XY). Questo elimina lo scatto.
+            # --- PHASE 1: Engagement Descent (Dynamic Tracking) ---
             print(f"[Joint-Space] {name}: Swooping down to track...")
             self._visual_servo_descend_trajectory(name, start_offset=0.25, end_offset=0.12, duration=1.0)
 
-            # --- FASE 2: Discesa di Presa ---
-            # Ora siamo a 12cm, allineati e stabili. Scendiamo a prendere (1.8cm).
+            # --- PHASE 2: Grasp Descent ---
             print(f"[Joint-Space] {name}: Final Grasp Descent...")
             self._visual_servo_descend_trajectory(name, start_offset=0.12, end_offset=0.010, duration=1.0)
             
-            # --- FASE 3: Presa (Attach) ---
+            # --- PHASE 3: Grasp (Attach) ---
             self.object_manager.mark_cube_picked(name)
             
             T_ee_contact = self.robot.fkine(self.robot.q)
@@ -64,14 +58,14 @@ class JointSpaceExecutor:
             
             print(f"[Joint-Space] {name}: Attached. Lifting...")
 
-            # --- FASE 4: Risalita (Lift) ---
-            # Risaliamo a 20cm (coordinate Mondo)
+            # --- PHASE 4: Lift ---
+            # Lift back up to 20cm (World coordinates)
             current_t = T_ee_contact.t
             lift_pose = SE3(current_t[0], current_t[1], current_t[2] + 0.20) * SE3.Rx(np.pi)
             
             self._move_to_pose_interpolated(lift_pose, cube, T_rel)
             
-            # --- FASE 5: Trasporto al Bucket ---
+            # --- PHASE 5: Transport to Bucket ---
             print(f"[Joint-Space] {name}: Transporting...")
             place_pos = self.object_manager.object_place_positions.get(name)
             
@@ -79,7 +73,7 @@ class JointSpaceExecutor:
                 target_place_above = SE3(place_pos) * SE3(0, 0, 0.20) * SE3.Rx(np.pi)
                 self._move_to_pose_interpolated(target_place_above, cube, T_rel)
             
-            # --- FASE 6: Rilascio ---
+            # --- PHASE 6: Release/Drop ---
             print(f"[Joint-Space] {name}: Dropping...")
             self.object_manager.mark_cube_released(name)
             
@@ -91,7 +85,7 @@ class JointSpaceExecutor:
                 current_cube_pos = cube_transform.t if hasattr(cube_transform, 't') else SE3(cube_transform).t
                 self._simulate_gravity_drop(cube, current_cube_pos, place_pos)
 
-            # --- FASE 7: Home ---
+            # --- PHASE 7: Home ---
             print(f"[Joint-Space] {name}: Returning Home...")
             self._move_joints_direct(self.env.q_home)
             
@@ -104,8 +98,8 @@ class JointSpaceExecutor:
 
     def _visual_servo_descend_trajectory(self, name, start_offset, end_offset, duration):
         """
-        Gestisce la discesa interpolata (Z) mentre corregge l'errore planare (XY) in tempo reale.
-        Usata sia per l'avvicinamento (25->12cm) che per la presa (12->1.8cm).
+        Handles interpolated descent (Z) while correcting planar error (XY) in real-time.
+        Used for both approach (25->12cm) and grasp (12->1.8cm).
         """
         steps = int(duration / self.sleep_dt)
         
@@ -116,15 +110,15 @@ class JointSpaceExecutor:
             cube_pos = self.object_manager.get_current_cube_position(name)
             if cube_pos is None: break
             
-            # Calcolo target sicuro (impedisce Z < altezza cubo se siamo alla fine)
+            # Calculate safe target (prevents Z < cube height if we are at the end)
             target_z = cube_pos[2] + current_z_offset
             
-            # Rotazione 180° su X (pinza in giù)
+            # 180° rotation on X (gripper pointing down)
             target_pose = SE3(cube_pos[0], cube_pos[1], target_z) * SE3.Rx(np.pi)
             
             sol = self.robot.ikine_LM(target_pose, q0=self.robot.q)
             if sol.success:
-                # Servo Gain alto (0.85) per tracking reattivo
+                # High Servo Gain (0.85) for reactive tracking
                 q_next = self.robot.q + 0.85 * (sol.q - self.robot.q)
                 self._step_robot(q_next)
             
@@ -138,7 +132,7 @@ class JointSpaceExecutor:
                 self._step_robot(q, cube, T_rel, attached=(cube is not None))
 
     def _move_joints_direct(self, q_target):
-        # Movimento spline fluido per lunghe distanze
+        # Smooth spline movement for long distances
         traj = self.controller.generate_trajectory(self.robot.q, q_target)
         for q in traj:
             self._step_robot(q)

@@ -15,7 +15,7 @@ class TrajectoryPlanner:
             robot: Robot model
             q_home: Home configuration
             approach_height: Height above object for approach
-            joint_space_controller: Optional JointSpaceController for generating joint trajectories
+            joint_space_controllerma : Optional JointSpaceController for generating joint trajectories
         """
         self.robot = robot
         self.q_home = q_home
