@@ -1,94 +1,110 @@
-# Project: Garbage Sorting with a Robot Arm
+# Robot Pick-and-Place Simulation
 
-## **Goal**
-
-Develop and compare two distinct control strategies for a **Panda robot manipulator** to perform an automated garbage sorting task. The robot must identify objects (e.g., colored cubes) and sort them into designated bins based on their color.
-
-## **Project Objective**
-
-The core objective is to create an algorithm that successfully calculates the picking and placing configurations for the robot arm for multiple objects and executes the sorting task using two different motion control strategies.
+## Overview
+This project simulates a robotic pick-and-place operation using two different control methods: **Joint Space Control** and **Resolved Rate Motion Control (RRMC)**. The simulation involves planning and executing trajectories for a robotic arm to pick up objects and place them in designated locations, with dynamic tracking and visualization.
 
 ---
 
-## **Implementation Details**
-
-### **The Robot System**
-
-* **Manipulator:** Utilize the **Panda robot manipulator**.
-* **Assumption:** The color of the objects is assumed to be known (focus is on motion control).
-* **Object Identification & IK:** For each detected object $i$:
-    * Compute the **picking position** $P_{\text{pick},i}$ and the **placing position** $P_{\text{place},i}$ based on the object’s color.
-    * Use **Inverse Kinematics (IK)** to obtain the robot joint configurations $q_{\text{pick},i}$ and $q_{\text{place},i}$.
-
-### **Control Strategies to Compare**
-
-The sorting task will be executed using the following two robot control methods:
-
-1.  **Joint-Space Trajectory Interpolation**
-    * **Method:** Move from $q_{\text{pick},i}$ to $q_{\text{place},i}$ using interpolated joint trajectories.
-    * **Focus:** Smooth and efficient movement in the joint space.
-
-2.  **Resolved-Rate Motion Control (RRMC)**
-    * **Method:** Use Cartesian velocity control (e.g., Jacobian pseudo-inverse) to smoothly reach the pick and place poses in the operational (Cartesian) space.
-    * **Focus:** Direct control over the end-effector's path.
+## Features
+- **Control Methods**:
+  - **Joint Space Control**: Smooth trajectory planning in joint space using cubic splines.
+  - **RRMC**: Cartesian velocity control with resolved rate motion control.
+- **Dynamic Object Tracking**: Real-time adjustments to track moving objects.
+- **Trajectory Planning**: Automated planning of pick-and-place trajectories.
+- **Visualization**: End-effector paths, joint angles, and workspace overview.
+- **Simulation Environment**: Includes object creation, motion, and gravity simulation.
 
 ---
 
-## **Analysis and Visualization**
-
-A crucial part of the project is the comparative analysis of the two control strategies.
-
-### **Analysis Tasks**
-
-* Plot and compare trajectories for both strategies in **joint space** and **Cartesian space**.
-* Analyze the **end-effector path smoothness**.
-* Evaluate the **execution time** for the complete sorting task.
-* Assess the overall **sorting accuracy** (e.g., proximity to the desired placement location).
-
-### **Visualization Requirements**
-
-* **Plots/Graphs:** Clear, informative, and well-labeled visualizations (e.g., time vs. joint angles, time vs. end-effector position/velocity).
-* **Execution Demo:** Include a video or live demo of the robot successfully executing the sorting task.
-
----
-
-## **Project Structure and Timeline**
-
-| WEEK / DATE | ACTIVITY | Notes |
-| :---: | :--- | :--- |
-| **\#9 / Today** | **Project Proposal Presentation & Group formation** | Initial concept submission. |
-| **\#10 / 21 November** | Project Development | Coding and implementation work. |
-| **\#11 / 28 November** | **Project Intermediate Presentation** | Mandatory check-in (not evaluated). |
-| **\#12 / 5 December** | Project Development | Refinement, analysis, and visualization. |
-| **\#13 / 12 December** | **Presentation Project & Evaluation (!!!)** | Final oral presentation and submission. |
+## Project Structure
+```
+robot/
+├── main.py                  # Entry point for the simulation
+├── README.md                # Project documentation
+├── src/                     # Source code directory
+│   ├── joint_space_controller.py  # Joint space trajectory control
+│   ├── joint_space_executor.py    # Joint space execution logic
+│   ├── rrmc_controller.py         # RRMC control logic
+│   ├── object_manager.py          # Object creation and management
+│   ├── pick_and_place_executor.py # RRMC pick-and-place execution
+│   ├── recorder.py                # Data recording for visualization
+│   ├── robot_environment.py       # Robot simulation environment
+│   ├── trajectory_planner.py      # Trajectory planning logic
+│   ├── visualizer.py              # Visualization utilities
+│   └── __init__.py                # Package initialization
+└── cubes_plot/             # Visualization outputs
+```
 
 ---
 
-## **Evaluation Criteria Summary**
-
-| Category | Weight |
-| :--- | :---: |
-| **Technical Implementation** | 35% |
-| **Analysis & Interpretation** | 20% |
-| **Visualization & Communication**| 20% |
-| **Presentation Skills** | 15% |
-| **Teamwork & Organization** | 10% |
+## Installation
+Clone the repository:
+   ```bash
+   git clone https://github.com/ManuCa93/robots.git
+   cd robots
+   ```
 
 ---
 
-## **Final Presentation Structure**
-
-1.  **Introduction of the Task:** Define the sorting objective and problem statement.
-2.  **Method Explanation:** Detail the IK and the two control strategies (Joint-Space and RRMC).
-3.  **Execution Demo (or video):** Showcase the successful operation of the code/robot.
-4.  **Plot Analysis:** Present key take-away messages and comparison results.
-5.  **Conclusion:** Summarize findings and future work.
+## Usage
+1. Run the simulation:
+   ```bash
+   python main.py
+   ```
+2. Choose the control method by modifying the `CONTROL_METHOD` variable in `main.py`:
+   - `"joint_space"` for Joint Space Control
+   - `"rrmc"` for Resolved Rate Motion Control
 
 ---
 
-## **Team**
+## Key Components
+### 1. **Joint Space Control**
+- Smooth trajectory planning using cubic splines.
+- Direct control of joint angles.
+- Suitable for tasks requiring smooth and predictable motion.
 
-* **Group Members:**
-    * Manuel Cattoni
-    * Alessio Carnevale
-    * Carlo Schillaci
+### 2. **Resolved Rate Motion Control (RRMC)**
+- Cartesian velocity control with damping to handle singularities.
+- Real-time adjustments for dynamic environments.
+- Suitable for precise Cartesian control.
+
+### 3. **Visualization**
+- End-effector paths and joint angles over time.
+- Workspace overview showing object positions and trajectories.
+
+---
+
+## Examples
+### Joint Space Control
+![Joint Space Control Example](cubes_plot/joint_space_example.png)
+
+### RRMC Control
+![RRMC Control Example](cubes_plot/rrmc_example.png)
+
+---
+
+## Contributing
+1. Fork the repository.
+2. Create a new branch:
+   ```bash
+   git checkout -b feature-branch
+   ```
+3. Commit your changes:
+   ```bash
+   git commit -m "Add new feature"
+   ```
+4. Push to the branch:
+   ```bash
+   git push origin feature-branch
+   ```
+5. Open a pull request.
+
+---
+
+## Acknowledgments
+- **Libraries Used**:
+  - `numpy`: Numerical computations
+  - `scipy`: Interpolation and optimization
+  - `spatialmath`: Robotics transformations
+  - `roboticstoolbox`: Environment
+- **Inspiration**: Robotics control and simulation techniques.
