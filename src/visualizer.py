@@ -17,6 +17,7 @@ class Visualizer:
         Generates an AUTOMATIC ANIMATION synchronized in Real-Time.
         Saves both a GIF animation and a static PNG of the error plot.
         """
+        
         if not history_data:
             print("[WARN] No history data to plot.")
             return
@@ -191,14 +192,8 @@ class Visualizer:
 
     @staticmethod
     def plot_joint_angles(history_data, title="Joint Angles Over Time", save_to_file=True):
-        """
-        Plot joint angles over time for all cubes.
-        
-        Args:
-            history_data: Dictionary with cube trajectories containing joint_angles
-            title: Plot title
-            save_to_file: Whether to save to file
-        """
+        """Plot joint angles over time for all cubes."""
+
         if not history_data:
             print("[WARN] No history data to plot.")
             return

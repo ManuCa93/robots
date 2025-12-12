@@ -1,7 +1,6 @@
-"""Resolved Rate Motion Control (RRMC) Implementation"""
+"""Resolved Rate Motion Control Implementation"""
 
 import numpy as np
-
 
 class RRMCController:
     """Implements RRMC for Cartesian velocity control with natural motion."""
@@ -17,6 +16,7 @@ class RRMCController:
             lambda_damping: Damping factor for pseudo-inverse
             gain: Proportional gain for velocity control
         """
+
         self.dt = dt
         self.position_tol = position_tol
         self.orientation_tol = orientation_tol
@@ -24,15 +24,8 @@ class RRMCController:
         self.gain = gain
         
     def move_to_pose(self, robot, target_pose, q_start, max_iterations=5000):
-        """
-        Move robot to target pose using RRMC with 6-DOF control (position + orientation).
+        """Move robot to target pose using RRMC with 6-DOF control (position + orientation)."""
         
-        Args:
-            robot: Robot model
-            target_pose: SE3 target pose
-            q_start: Starting joint configuration
-            max_iterations: Maximum iterations
-        """
         # Set initial configuration
         robot.q = q_start.copy()
         

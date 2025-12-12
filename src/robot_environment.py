@@ -11,12 +11,8 @@ class RobotEnvironment:
     """Manages the Swift environment, robot, and terrain."""
     
     def __init__(self, terrain_bounds=None):
-        """
-        Initialize the robot environment.
+        """Initialize the robot environment."""
         
-        Args:
-            terrain_bounds: Dictionary with x_min, x_max, y_min, y_max
-        """
         self.env = Swift()
         self.panda = rtb.models.Panda()
         

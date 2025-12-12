@@ -11,15 +11,8 @@ class DataRecorder:
         self.start_time = time.time()
 
     def log_pose(self, name, robot_pose, error_val=0.0, joint_angles=None):
-        """
-        Records the current End-Effector position, error, and joint angles.
-        
-        Args:
-            name: Name of the cube being manipulated (e.g., 'red1')
-            robot_pose: SE3 pose (must have .t attribute)
-            error_val: Current tracking error (default 0.0 for Joint Space)
-            joint_angles: Array of joint angles (optional)
-        """
+        """Records the current End-Effector position, error, and joint angles."""
+
         if name is None: 
             return
         
@@ -52,4 +45,5 @@ class DataRecorder:
 
     def get_data(self):
         """Returns the entire recorded history."""
+        
         return self.history

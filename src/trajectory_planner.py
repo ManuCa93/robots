@@ -23,13 +23,8 @@ class TrajectoryPlanner:
         self.joint_space_controller = joint_space_controller
         
     def compute_ik(self, position, z_offset=0.0):
-        """
-        Compute inverse kinematics for a position.
-        
-        Args:
-            position: Target position (x, y, z)
-            z_offset: Vertical offset from position
-        """
+        """Compute inverse kinematics for a position."""
+
         target = np.array(position).copy()
         target[2] += z_offset
         
@@ -39,13 +34,8 @@ class TrajectoryPlanner:
         return result.q, result.success
         
     def plan_pick_and_place(self, pick_pos, place_pos):
-        """
-        Plan a complete pick-and-place trajectory.
-        
-        Args:
-            pick_pos: Pick position (x, y, z)
-            place_pos: Place position (x, y, z)
-        """
+        """Plan a complete pick-and-place trajectory."""
+
         # Create SE3 poses
         poses = {
             "home": self.robot.fkine(self.q_home),
@@ -86,12 +76,8 @@ class TrajectoryPlanner:
         return result
         
     def plan_all_trajectories(self, pick_place_pairs):
-        """
-        Plan trajectories for all objects.
+        """Plan trajectories for all objects."""
         
-        Args:
-            pick_place_pairs: Dictionary mapping names to (pick_pos, place_pos)
-        """
         trajectories = {}
         
         for name, (pick_pos, place_pos) in pick_place_pairs.items():

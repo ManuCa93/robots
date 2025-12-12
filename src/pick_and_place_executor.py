@@ -23,6 +23,7 @@ class PickAndPlaceExecutor:
             update_freq: Frequency of visualization updates
             gravity_acceleration: Gravity acceleration for cube drop (m/s^2)
         """
+        
         self.robot = robot
         self.env = env
         self.rrmc_controller = rrmc_controller
@@ -33,13 +34,8 @@ class PickAndPlaceExecutor:
         self.gravity_acceleration = gravity_acceleration
         
     def execute_single(self, name, trajectory_data):
-        """
-        Execute pick-and-place for a single object.
-        
-        Args:
-            name: Object name (color)
-            trajectory_data: Dictionary with poses and IK solutions
-        """
+        """Execute pick-and-place for a single object."""
+
         cube = self.object_manager.cubes[name]
         ik_solutions = trajectory_data["ik_solutions"]
         
@@ -118,6 +114,7 @@ class PickAndPlaceExecutor:
     
     def _simulate_gravity_drop(self, cube, start_pos, target_pos):
         """Simulate gravity drop of cube from current position to target."""
+
         # Gravity drop does not move the robot, so no logging needed for robot EE here
         print(f"[GRAVITY] Start pos: {start_pos}")
         print(f"[GRAVITY] Target pos: {target_pos}")
@@ -152,6 +149,7 @@ class PickAndPlaceExecutor:
             
     def _rrmc_move_with_viz_tracking(self, initial_target_pose, q_start, cube_name, phase="pick_above"):
         """Execute RRMC motion while tracking a moving cube."""
+
         self.robot.q = q_start.copy()
         
         iteration = 0
@@ -225,7 +223,8 @@ class PickAndPlaceExecutor:
         return self.robot.q
     
     def _rrmc_move_with_viz(self, target_pose, q_start, cube_attached=False, T_rel=None, cube=None, cube_name=None):
-        """Execute RRMC motion with visualization using 6-DOF control."""
+        """Execute RRMC motion with visualization."""
+
         self.robot.q = q_start.copy()
         
         iteration = 0
@@ -288,12 +287,8 @@ class PickAndPlaceExecutor:
         return self.robot.q
         
     def execute_all(self, trajectories):
-        """
-        Execute pick-and-place for all objects.
-        
-        Args:
-            trajectories: Dictionary mapping names to trajectory data
-        """
+        """Execute pick-and-place for all objects."""
+
         for idx, (name, traj_data) in enumerate(trajectories.items(), 1):
             print(f"\n[INFO] [{idx}/{len(trajectories)}] Executing pick-and-place for {name}")
             self.execute_single(name, traj_data)

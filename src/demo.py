@@ -1,4 +1,4 @@
-"""Demo script showing both RRMC and Joint-Space control methods"""
+"""Demo script showing both RRMC and Joint-Space methods"""
 
 import numpy as np
 from robot_environment import RobotEnvironment
@@ -36,9 +36,7 @@ obj_manager.create_plates(env.terrain_bounds, env)
 
 pick_place_pairs = obj_manager.get_pick_place_pairs()
 
-# ============================================================
 # DEMO 1: RRMC Control
-# ============================================================
 print("\n" + "="*60)
 print("DEMO 1: Using RRMC (Resolved Rate Motion Control)")
 print("="*60)
@@ -52,9 +50,8 @@ executor_rrmc = PickAndPlaceExecutor(env.panda, env, rrmc, obj_manager)
 print("\n[RRMC] Executing pick-and-place for 'red' cube...")
 executor_rrmc.execute_single('red', trajectories_rrmc['red'])
 
-# ============================================================
+
 # DEMO 2: Joint-Space Control
-# ============================================================
 print("\n" + "="*60)
 print("DEMO 2: Using Joint-Space Trajectory Control")
 print("="*60)

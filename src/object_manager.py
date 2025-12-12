@@ -14,11 +14,6 @@ class ObjectManager:
     def __init__(self, cube_size=0.06, plate_size=0.1, plate_height=0.005):
         """
         Initialize the object manager.
-        
-        Args:
-            cube_size: Size of the cubes
-            plate_size: Size of the plates
-            plate_height: Height of the plates
         """
         self.cube_size = cube_size
         self.plate_size = plate_size
@@ -47,13 +42,8 @@ class ObjectManager:
         self.picked_cubes = set()  # Track cubes that are picked up (stop their motion)
         
     def create_cubes(self, positions, env):
-        """
-        Create cube objects at specified positions.
+        """Create cube objects at specified positions."""
         
-        Args:
-            positions: Dictionary mapping color names to (x, y, z) positions
-            env: RobotEnvironment instance
-        """
         for name, pos in positions.items():
             base_color = self.get_base_color(name)
             colors = {
@@ -82,13 +72,8 @@ class ObjectManager:
         print(f"[INFO] Created {len(self.cubes)} cubes")
         
     def generate_plate_positions(self, terrain_bounds, num_plates=4):
-        """
-        Generate random non-overlapping positions for plates.
-        
-        Args:
-            terrain_bounds: Dictionary with x_min, x_max, y_min, y_max
-            num_plates: Number of plates to place
-        """
+        """Generate random non-overlapping positions for plates."""
+
         min_distance = self.plate_size * 1.5
         positions = []
         attempts = 0
@@ -112,13 +97,8 @@ class ObjectManager:
         return positions
     
     def create_buckets(self, terrain_bounds, env, cube_height):
-        """
-        Create plate objects at random positions.
-        
-        Args:
-            terrain_bounds: Dictionary with x_min, x_max, y_min, y_max
-            env: RobotEnvironment instance
-        """
+        """Create plate objects at random positions."""
+
         color_names = ['red', 'blue', 'green', 'yellow']
         color_map = {
             'red': [1, 0, 0, 0.5],
@@ -237,9 +217,8 @@ class ObjectManager:
         return name
         
     def get_pick_place_pairs(self):
-        """
-        Get pick and place positions for each object.
-        """
+        """Get pick and place positions for each object."""
+
         pairs = {}
         
         # Each bucket can contain up to 9 cubes in a 3x3 grid

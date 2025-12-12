@@ -1,11 +1,11 @@
-"""Joint-Space Pick and Place Execution with Dynamic Tracking"""
+"""Joint-Space Pick and Place Execution"""
 
 import time
 import numpy as np
 from spatialmath import SE3
 
 class JointSpaceExecutor:
-    """Executes pick-and-place operations using dynamic joint-space servoing."""
+    """Executes pick-and-place operations using the joint-space method."""
     
     def __init__(self, robot, env, joint_space_controller, object_manager, recorder=None, sleep_dt=0.02, gravity_acceleration=2.0):
         self.robot = robot
@@ -34,14 +34,14 @@ class JointSpaceExecutor:
             cube_pos_init = self.object_manager.get_current_cube_position(name)
             
             if cube_pos_init is not None:
-                # Initial HIGH target: 25cm above the cube
+                # Initial high target: 25cm above the cube
                 target_approach = SE3(cube_pos_init[0], cube_pos_init[1], cube_pos_init[2] + 0.25) * SE3.Rx(np.pi)
                 
                 sol = self.robot.ikine_LM(target_approach, q0=self.robot.q)
                 if sol.success:
                     self._move_joints_direct(sol.q)
             
-            # --- PHASE 1: Engagement Descent (Dynamic Tracking) ---
+            # --- PHASE 1: Engagement Descent ---
             print(f"[Joint-Space] {name}: Swooping down to track...")
             self._visual_servo_descend_trajectory(name, start_offset=0.25, end_offset=0.12, duration=1.0)
 
@@ -110,15 +110,14 @@ class JointSpaceExecutor:
             cube_pos = self.object_manager.get_current_cube_position(name)
             if cube_pos is None: break
             
-            # Calculate safe target (prevents Z < cube height if we are at the end)
+            # Calculate safe target
             target_z = cube_pos[2] + current_z_offset
             
-            # 180 degrees rotation on X (gripper pointing down)
+            # 180 degrees rotation on X 
             target_pose = SE3(cube_pos[0], cube_pos[1], target_z) * SE3.Rx(np.pi)
             
             sol = self.robot.ikine_LM(target_pose, q0=self.robot.q)
             if sol.success:
-                # High Servo Gain (0.85) for reactive tracking
                 q_next = self.robot.q + 0.85 * (sol.q - self.robot.q)
                 self._step_robot(q_next)
             
@@ -141,7 +140,7 @@ class JointSpaceExecutor:
         self.robot.q = q
         self.env.set_robot_config(q)
         
-        # logging
+        # Logging
         if self.recorder and self.current_cube_name:
             current_pose = self.robot.fkine(q)
             self.recorder.log_pose(self.current_cube_name, current_pose, joint_angles=q)
@@ -153,6 +152,8 @@ class JointSpaceExecutor:
         self.env.step(0.01)
 
     def _simulate_gravity_drop(self, cube, start_pos, target_pos):
+        """Simulate gravity-driven drop of the cube from start_pos to target_pos using physics formula."""
+        
         drop_distance = start_pos[2] - target_pos[2]
         if drop_distance <= 0:
             cube.T = SE3(target_pos[0], target_pos[1], target_pos[2])

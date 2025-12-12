@@ -1,5 +1,3 @@
-"""Robot Control System - Modular Components"""
-
 from .robot_environment import RobotEnvironment
 from .object_manager import ObjectManager
 from .rrmc_controller import RRMCController
