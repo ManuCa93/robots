@@ -38,10 +38,14 @@ robot/
 ---
 
 ## Installation
-Clone the repository:
+1. Clone the repository:
    ```bash
    git clone https://github.com/ManuCa93/robots.git
    cd robots
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
    ```
 
 ---
